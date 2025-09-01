@@ -7,7 +7,6 @@ RequiresMountsFor=/etc/selinux /var/lib/selinux
 
 [Service]
 Type=oneshot
-ExecStartPre=/usr/sbin/semodule -B || true
 ExecStart=/usr/libexec/howdy-selinux-setup
 RemainAfterExit=yes
 
