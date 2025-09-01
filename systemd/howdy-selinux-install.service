@@ -8,10 +8,7 @@ RequiresMountsFor=/etc/selinux /var/lib/selinux
 [Service]
 Type=oneshot
 ExecStartPre=/bin/sh -c '/usr/sbin/semodule -B || true'
-ExecStart=/bin/sh -eu -c '\
-  /usr/bin/checkmodule -M -m -o /run/howdy_gdm.mod /usr/share/selinux/howdy/howdy_gdm.te && \
-  /usr/bin/semodule_package -o /run/howdy_gdm.pp -m /run/howdy_gdm.mod && \
-  /usr/sbin/semodule -i /run/howdy_gdm.pp'
+ExecStart=/bin/sh -eu -c 'make -f /usr/share/selinux/devel/Makefile -C /usr/share/selinux/howdy howdy_gdm.pp && /usr/sbin/semodule -i /usr/share/selinux/howdy/howdy_gdm.pp'
 RemainAfterExit=yes
 
 [Install]

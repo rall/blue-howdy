@@ -8,7 +8,7 @@ FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:gts
 RUN dnf5 -y clean all && \
     dnf5 -y makecache --refresh || true
 
-RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy policycoreutils-python-utils && \
+RUN rpm-ostree install policycoreutils selinux-policy-targeted selinux-policy-devel policycoreutils-python-utils && \
     rpm-ostree cleanup -m
 
 # Avoid PATH issues during finalize
