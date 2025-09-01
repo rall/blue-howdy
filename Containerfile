@@ -1,10 +1,11 @@
+ARG BASE_IMAGE=ghcr.io/ublue-os/bluefin-dx-nvidia-open:gts
+FROM $BASE_IMAGE AS base
+
 # Allow build scripts to be referenced without being copied into the final image
 FROM scratch AS ctx
 COPY build_files /
 
-ARG BASE_IMAGE=ghcr.io/ublue-os/bluefin-dx-nvidia-open:gts
-FROM ${BASE_IMAGE}
-
+FROM base
 RUN dnf5 -y clean all && dnf5 -y makecache --refresh || true
 
 RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy policycoreutils-python-utils && \
