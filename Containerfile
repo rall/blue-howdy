@@ -5,6 +5,9 @@ COPY build_files /
 # Base Image
 FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:gts
 
+RUN dnf5 -y clean all && \
+    dnf5 -y makecache --refresh || true
+
 # Ensure tools & policy are present in the final deployment
 RUN rpm-ostree install \
       policycoreutils \
