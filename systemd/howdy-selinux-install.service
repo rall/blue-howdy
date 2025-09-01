@@ -1,0 +1,13 @@
+[Unit]
+Description=Install Howdy SELinux policy
+After=local-fs.target selinux-autorelabel-mark.service
+ConditionSecurity=selinux
+ConditionPathExists=/usr/share/selinux/howdy/howdy_gdm.cil
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/semodule -i /usr/share/selinux/howdy/howdy_gdm.cil
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

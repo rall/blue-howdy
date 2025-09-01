@@ -15,25 +15,13 @@ RUN rpm-ostree install \
 RUN ln -sf /usr/sbin/semodule /usr/bin/semodule
 
 COPY selinux/howdy_gdm.cil /usr/share/selinux/howdy/howdy_gdm.cil
+COPY systemd/howdy-selinux-install.service /usr/lib/systemd/system/howdy-selinux-install.service
 
-# one-shot unit to install the module on the host
-# Install a systemd oneshot unit that loads the policy on boot
-RUN install -d /usr/lib/systemd/system
-RUN <<'EOF' > /usr/lib/systemd/system/howdy-selinux-install.service 
-[Unit]
-Description=Install Howdy SELinux policy
-After=local-fs.target selinux-autorelabel-mark.service
-ConditionSecurity=selinux
-ConditionPathExists=/usr/share/selinux/howdy/howdy_gdm.cil
+# Enable via preset (preferred for rpm-ostree/bootc)
+RUN install -d /usr/lib/systemd/system-preset && \
+    printf 'enable howdy-selinux-install.service\n' \
+      > /usr/lib/systemd/system-preset/90-howdy.preset
 
-[Service]
-Type=oneshot
-ExecStart=/usr/sbin/semodule -i /usr/share/selinux/howdy/howdy_gdm.cil
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
 RUN install -Dm0644 /dev/null /usr/lib/sysusers.d/howdy-gdm.conf && \
     printf 'm gdm video\n' > /usr/lib/sysusers.d/howdy-gdm.conf
 RUN install -d /usr/lib/systemd/system-preset && \
