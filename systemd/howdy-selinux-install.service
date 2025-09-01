@@ -1,7 +1,7 @@
 [Unit]
 Description=Install Howdy SELinux policy
 ConditionSecurity=selinux
-ConditionPathExists=/usr/share/selinux/howdy/howdy_gdm.cil
+ConditionPathExists=/usr/share/selinux/howdy/howdy_gdm.te
 After=local-fs.target selinux-autorelabel-mark.service selinux-policy-migrate-local-changes.service
 RequiresMountsFor=/etc/selinux /var/lib/selinux
 
