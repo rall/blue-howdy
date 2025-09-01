@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TE="/usr/share/selinux/howdy/howdy_gdm.te"
+WRK="/run/howdy"
+
+# Only on SELinux-enabled hosts
+sestatus >/dev/null 2>&1 || exit 0
+grep -q '^SELinux status:.*enabled' <<<"$(sestatus 2>/dev/null || true)" || exit 0
+
+# If already loaded, exit quietly
+if semodule -l | awk '{print $1}' | grep -qx howdy_gdm; then
+  exit 0
+fi
+
+# Build in a writable dir against the host policy
+install -d -m0755 "$WRK"
+cp -f "$TE" "$WRK"/
+
+# Prefer devel Makefile if present, else raw toolchain (module version 21)
+if [ -f /usr/share/selinux/devel/Makefile ]; then
+  make -s -f /usr/share/selinux/devel/Makefile -C "$WRK" howdy_gdm.pp
+else
+  checkmodule -M -m -c 21 -o "$WRK/howdy_gdm.mod" "$WRK/howdy_gdm.te"
+  semodule_package -o "$WRK/howdy_gdm.pp" -m "$WRK/howdy_gdm.mod"
+fi
+
+semodule -i "$WRK/howdy_gdm.pp" || true
+exit 0

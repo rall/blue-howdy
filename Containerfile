@@ -2,19 +2,19 @@
 FROM scratch AS ctx
 COPY build_files /
 
-# Base Image
-FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:gts
+ARG BASE_IMAGE=ghcr.io/ublue-os/bluefin-dx-nvidia-open:gts
+FROM ${BASE_IMAGE}
 
-RUN dnf5 -y clean all && \
-    dnf5 -y makecache --refresh || true
+RUN dnf5 -y clean all && dnf5 -y makecache --refresh || true
 
-RUN rpm-ostree install policycoreutils selinux-policy-targeted selinux-policy-devel policycoreutils-python-utils && \
+RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy policycoreutils-python-utils && \
     rpm-ostree cleanup -m
 
 # Avoid PATH issues during finalize
 RUN ln -sf /usr/sbin/semodule /usr/bin/semodule
 
-# Copy policy and unit, enable via wants-symlink
+COPY selinux/howdy-selinux-setup /usr/libexec/howdy-selinux-setup
+RUN chmod 0755 /usr/libexec/howdy-selinux-setup
 COPY selinux/howdy_gdm.te /usr/share/selinux/howdy/howdy_gdm.te
 COPY systemd/howdy-selinux-install.service /usr/lib/systemd/system/howdy-selinux-install.service
 RUN ln -s ../howdy-selinux-install.service \

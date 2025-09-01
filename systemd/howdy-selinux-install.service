@@ -1,14 +1,14 @@
 [Unit]
 Description=Install Howdy SELinux policy
 ConditionSecurity=selinux
-ConditionPathExists=/usr/share/selinux/howdy/howdy_gdm.te
+ConditionPathExists=/usr/libexec/howdy-selinux-setup
 After=local-fs.target selinux-autorelabel-mark.service selinux-policy-migrate-local-changes.service
 RequiresMountsFor=/etc/selinux /var/lib/selinux
 
 [Service]
 Type=oneshot
-ExecStartPre=/bin/sh -c '/usr/sbin/semodule -B || true'
-ExecStart=/bin/sh -eu -c 'make -f /usr/share/selinux/devel/Makefile -C /usr/share/selinux/howdy howdy_gdm.pp && /usr/sbin/semodule -i /usr/share/selinux/howdy/howdy_gdm.pp'
+ExecStartPre=/usr/sbin/semodule -B || true
+ExecStart=/usr/libexec/howdy-selinux-setup
 RemainAfterExit=yes
 
 [Install]
