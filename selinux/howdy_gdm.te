@@ -1,4 +1,4 @@
-module howdy_dm 1.0;
+module howdy_gdm 1.0;
 
 require {
     type v4l_device_t, gdm_t, xdm_t, sddm_t, lightdm_t;
