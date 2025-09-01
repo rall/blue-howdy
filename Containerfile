@@ -9,7 +9,7 @@ RUN dnf5 -y clean all && \
     dnf5 -y makecache --refresh || true
 
 # Ensure tools & policy are present in the final deployment
-RUN rpm-ostree install policycoreutils selinux-policy-targeted &&\
+RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy &&\
     rpm-ostree cleanup -m
 
 # Avoid PATH issues during finalize
