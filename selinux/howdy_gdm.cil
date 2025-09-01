@@ -1,4 +1,3 @@
 (module howdy_gdm 1.0)
-
-;; allow GDM’s PAM helper to access V4L devices
-(allow gdm_t v4l_device_t (chr_file (open read ioctl getattr)))
+(allow xdm_t v4l_device_t (chr_file (open read ioctl getattr map)))
+(allow gdm_t v4l_device_t (chr_file (open read ioctl getattr map)))

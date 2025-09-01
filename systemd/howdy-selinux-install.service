@@ -1,11 +1,14 @@
 [Unit]
 Description=Install Howdy SELinux policy
-After=local-fs.target selinux-autorelabel-mark.service
 ConditionSecurity=selinux
 ConditionPathExists=/usr/share/selinux/howdy/howdy_gdm.cil
+After=local-fs.target selinux-autorelabel-mark.service selinux-policy-migrate-local-changes.service
+RequiresMountsFor=/etc/selinux /var/lib/selinux
 
 [Service]
 Type=oneshot
+# Rebuild local store if needed; ignore errors so ExecStart still runs
+ExecStartPre=/usr/sbin/semodule -B || true
 ExecStart=/usr/sbin/semodule -i /usr/share/selinux/howdy/howdy_gdm.cil
 RemainAfterExit=yes
 
