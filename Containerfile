@@ -11,6 +11,7 @@ RUN rpm-ostree install \
       selinux-policy-targeted \
     && rpm-ostree cleanup -m
 
+# PATH quirk during finalize
 RUN ln -sf /usr/sbin/semodule /usr/bin/semodule
 
 ### MODIFICATIONS
