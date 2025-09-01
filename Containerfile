@@ -18,8 +18,8 @@ COPY selinux/howdy_gdm.cil /usr/share/selinux/howdy/howdy_gdm.cil
 
 # one-shot unit to install the module on the host
 # Install a systemd oneshot unit that loads the policy on boot
-RUN install -d /usr/lib/systemd/system && \
-    cat > /usr/lib/systemd/system/howdy-selinux-install.service <<'EOF'
+RUN install -d /usr/lib/systemd/system
+RUN <<'EOF' > /usr/lib/systemd/system/howdy-selinux-install.service 
 [Unit]
 Description=Install Howdy SELinux policy
 After=local-fs.target selinux-autorelabel-mark.service
