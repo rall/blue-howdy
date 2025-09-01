@@ -7,10 +7,8 @@ RequiresMountsFor=/etc/selinux /var/lib/selinux
 
 [Service]
 Type=oneshot
-# optional: refresh local store; ignore errors
-ExecStartPre=/usr/sbin/semodule -B || true
-# compile CIL against host policy, then install the PP
-ExecStart=/bin/sh -eu -c 'secilc -M howdy_gdm -o /run/howdy_gdm.pp /usr/share/selinux/howdy/howdy_gdm.cil; semodule -i /run/howdy_gdm.pp'
+ExecStartPre=/bin/sh -c '/usr/sbin/semodule -B || true'
+ExecStart=/bin/sh -eu -c 'secilc -M howdy_gdm -o /run/howdy_gdm.pp /usr/share/selinux/howdy/howdy_gdm.cil; /usr/sbin/semodule -i /run/howdy_gdm.pp'
 RemainAfterExit=yes
 
 [Install]
