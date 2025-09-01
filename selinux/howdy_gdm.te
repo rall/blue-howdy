@@ -1,3 +1,9 @@
-(module howdy_gdm 1.0)
-(allow xdm_t v4l_device_t (chr_file (open read ioctl getattr map)))
-(allow gdm_t v4l_device_t (chr_file (open read ioctl getattr map)))
+policy_module(howdy_gdm, 1.0)
+
+require {
+    type xdm_t, gdm_t, v4l_device_t;
+    class chr_file { open read ioctl getattr map };
+}
+
+allow xdm_t v4l_device_t:chr_file { open read ioctl getattr map };
+allow gdm_t v4l_device_t:chr_file { open read ioctl getattr map };
