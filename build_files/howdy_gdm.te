@@ -1,0 +1,10 @@
+module howdy_gdm 1.0;
+
+require {
+  type gdm_t;
+  type v4l_device_t;
+  class chr_file { open read ioctl getattr };
+}
+
+# Allow GDM’s PAM (pam_howdy) to access the V4L device nodes
+allow gdm_t v4l_device_t:chr_file { open read ioctl getattr };
