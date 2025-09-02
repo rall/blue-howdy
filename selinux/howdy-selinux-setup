@@ -31,19 +31,15 @@ else
   semodule_package -o "$WRK/howdy_gdm.pp" -m "$WRK/howdy_gdm.mod"
 fi
 
-# Try to install; if it fails, fall back to AVC-derived module
+# Fallback to capturing AVCs
 if ! semodule -i "$WRK/howdy_gdm.pp" 2>/dev/null; then
-  log "install failed; trying AVC-derived module"
+  # make sure we have tools
   if command -v ausearch >/dev/null && command -v audit2allow >/dev/null; then
     (ausearch -m avc -ts boot || ausearch -m avc -ts recent) > "$WRK/howdy.avc" || true
     if [ -s "$WRK/howdy.avc" ]; then
-      audit2allow -M howdy_gdm_auto -i "$WRK/howdy.avc" || true
-      semodule -X 400 -i howdy_gdm_auto.pp || true
-    else
-      log "no AVCs found; cannot auto-generate module"
+      audit2allow -M howdy_camera -i "$WRK/howdy.avc" && \
+      semodule -X 400 -i howdy_camera.pp || true
     fi
-  else
-    log "audit2allow/ausearch not available; skipping fallback"
   fi
 fi
 
