@@ -7,14 +7,13 @@ LOG_TAG="howdy-selinux-setup"
 
 log(){ logger -t "$LOG_TAG" -- "$*"; }
 
-# Only on SELinux-enabled hosts
+# Only act on SELinux-enabled systems
 if ! sestatus >/dev/null 2>&1 || ! sestatus 2>/dev/null | grep -q 'enabled'; then
   exit 0
 fi
 
-# Already installed?
+# Exit if already installed
 if semodule -l | awk '{print $1}' | grep -qx howdy_gdm; then
-  log "module already present"
   exit 0
 fi
 
@@ -31,18 +30,20 @@ else
   semodule_package -o "$WRK/howdy_gdm.pp" -m "$WRK/howdy_gdm.mod"
 fi
 
-# Fallback to capturing AVCs
-if ! semodule -i "$WRK/howdy_gdm.pp" 2>/dev/null; then
-  # make sure we have tools
-  if command -v ausearch >/dev/null && command -v audit2allow >/dev/null; then
-    (ausearch -m avc -ts boot || ausearch -m avc -ts recent) > "$WRK/howdy.avc" || true
-    if [ -s "$WRK/howdy.avc" ]; then
-      audit2allow -M howdy_camera -i "$WRK/howdy.avc" && \
-      semodule -X 400 -i howdy_camera.pp || true
-    fi
+# Try to install the compiled module
+if semodule -i "$WRK/howdy_gdm.pp" 2>/dev/null; then
+  log "installed TE module"
+  exit 0
+fi
+
+# Optional: AVC-derived module (still enforcing; no permissive)
+if command -v ausearch >/dev/null && command -v audit2allow >/dev/null; then
+  (ausearch -m avc -ts boot || ausearch -m avc -ts recent) > "$WRK/howdy.avc" || true
+  if [ -s "$WRK/howdy.avc" ]; then
+    log "installing AVC-derived module"
+    audit2allow -M howdy_gdm_auto -i "$WRK/howdy.avc" && semodule -X 400 -i howdy_gdm_auto.pp || true
   fi
 fi
 
-# Final attempt (idempotent)
-semodule -i "$WRK/howdy_gdm.pp" || true
+# Done. No permissive fallback.
 exit 0
