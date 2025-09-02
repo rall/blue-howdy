@@ -3,27 +3,50 @@ set -euo pipefail
 
 TE="/usr/share/selinux/howdy/howdy_gdm.te"
 WRK="/run/howdy"
+LOG_TAG="howdy-selinux-setup"
+
+log(){ logger -t "$LOG_TAG" -- "$*"; }
 
 # Only on SELinux-enabled hosts
-sestatus >/dev/null 2>&1 || exit 0
-grep -q '^SELinux status:.*enabled' <<<"$(sestatus 2>/dev/null || true)" || exit 0
-
-# If already loaded, exit quietly
-if semodule -l | awk '{print $1}' | grep -qx howdy_gdm; then
+if ! sestatus >/dev/null 2>&1 || ! sestatus 2>/dev/null | grep -q 'enabled'; then
   exit 0
 fi
 
-# Build in a writable dir against the host policy
-install -d -m0755 "$WRK"
-cp -f "$TE" "$WRK"/
+# Already installed?
+if semodule -l | awk '{print $1}' | grep -qx howdy_gdm; then
+  log "module already present"
+  exit 0
+fi
 
-# Prefer devel Makefile if present, else raw toolchain (module version 21)
+install -d -m0755 "$WRK"
+cp -f "$TE" "$WRK/"
+
+# Prefer devel Makefile; else fall back to raw toolchain (module ver 21)
 if [ -f /usr/share/selinux/devel/Makefile ]; then
+  log "building via devel Makefile"
   make -s -f /usr/share/selinux/devel/Makefile -C "$WRK" howdy_gdm.pp
 else
+  log "building via checkmodule/semodule_package (c=21)"
   checkmodule -M -m -c 21 -o "$WRK/howdy_gdm.mod" "$WRK/howdy_gdm.te"
   semodule_package -o "$WRK/howdy_gdm.pp" -m "$WRK/howdy_gdm.mod"
 fi
 
+# Try to install; if it fails, fall back to AVC-derived module
+if ! semodule -i "$WRK/howdy_gdm.pp" 2>/dev/null; then
+  log "install failed; trying AVC-derived module"
+  if command -v ausearch >/dev/null && command -v audit2allow >/dev/null; then
+    (ausearch -m avc -ts boot || ausearch -m avc -ts recent) > "$WRK/howdy.avc" || true
+    if [ -s "$WRK/howdy.avc" ]; then
+      audit2allow -M howdy_gdm_auto -i "$WRK/howdy.avc" || true
+      semodule -X 400 -i howdy_gdm_auto.pp || true
+    else
+      log "no AVCs found; cannot auto-generate module"
+    fi
+  else
+    log "audit2allow/ausearch not available; skipping fallback"
+  fi
+fi
+
+# Final attempt (idempotent)
 semodule -i "$WRK/howdy_gdm.pp" || true
 exit 0
