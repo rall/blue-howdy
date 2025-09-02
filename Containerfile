@@ -9,8 +9,8 @@ FROM base
 RUN dnf5 -y clean all && dnf5 -y makecache --refresh || true
 
 RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy \
-    policycoreutils-python-utils selinux-policy-devel setools-console libsepol \
-    libsemanage python3-libsemanage && \
+    policycoreutils-python-utils selinux-policy-devel setools-console \
+    libsepol libsemanage python3-libsepol python3-libsemanage && \
     rpm-ostree cleanup -m
 
 # Avoid PATH issues during finalize
