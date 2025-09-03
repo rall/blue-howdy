@@ -28,6 +28,7 @@ HOWDY_LINE := "auth sufficient pam_howdy.so"
 	echo "-- howdy line:"
 	grep -n 'pam_howdy\.so' "${GDM_PAM}" || echo "(not present)"
 	echo
+	echo
 	echo "==> /etc/pam.d/sudo"
 	grep -n 'pam_howdy\.so' /etc/pam.d/sudo || echo "(not present)"
 	echo
@@ -68,6 +69,7 @@ pam-add howdy_in_sudo="0":
 	  fi
 	  just sudoif install -m 0644 /tmp/gdm-password.new "${GDM_PAM}"
 	  just sudoif restorecon -v "${GDM_PAM}" || true
+	  just sudoif restorecon -v "${GDM_PAM}" || true
 	  rm -f /tmp/gdm-password.new
 	  echo "Inserted Howdy into ${GDM_PAM}"
 	else
@@ -79,6 +81,7 @@ pam-add howdy_in_sudo="0":
 	  if ! grep -q 'pam_howdy\.so' /etc/pam.d/sudo; then
 	    awk -v ins='${HOWDY_LINE}' 'BEGIN { print ins } { print }' /etc/pam.d/sudo > /tmp/sudo.new
 	    just sudoif install -m 0644 /tmp/sudo.new /etc/pam.d/sudo
+	    just sudoif restorecon -v /etc/pam.d/sudo || true
 	    just sudoif restorecon -v /etc/pam.d/sudo || true
 	    rm -f /tmp/sudo.new
 	    echo "Inserted Howdy into /etc/pam.d/sudo"
