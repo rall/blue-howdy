@@ -17,8 +17,9 @@ Bluefin images that enable **Howdy face login** out of the box, with **SELinux e
 
 ---
 
-## PAM Configuration
+## Configuration
 
+### PAM
 To actually use Howdy, PAM must be updated:
 
 - **GDM login**: edit `/etc/pam.d/gdm-password` and add:
@@ -31,6 +32,19 @@ To actually use Howdy, PAM must be updated:
 
 **Warning:** Always test Howdy at the GNOME greeter **before rebooting**.  
 If it fails, switch to a TTY (Ctrl+Alt+F3), log in with your password, and revert.
+
+
+### Set camera device
+
+```bash
+ujust howdy-ir-candidates      # see likely IR nodes
+ujust howdy-pick-ir            # auto-pick and set device_path
+ujust howdy-verify             # confirm it works
+```
+
+If your hardware presents IR and RGB as one multi-function node with mixed formats, the heuristic might need nudging. In that case, pick the right /dev/v4l/by-id/...-video-indexX manually from howdy-ir-candidates and set it with:
+
+`ujust set-howdy-device '/dev/v4l/by-id/<whatever>-video-index0'`
 
 ---
 

@@ -114,6 +114,47 @@ pam-revert:
 	fi
 	echo "Done. You may run: sudo systemctl restart gdm"
 
+# list candidate V4L devices (stable by-id paths)
+howdy-detect:
+	@ls -l /dev/v4l/by-id/ 2>/dev/null | awk '{print $$9, "->", $$11}' || echo "no /dev/v4l/by-id entries"
+
+# show devices which probably support IR
+howdy-ir-candidates:
+	@set -euo pipefail; \
+	for n in /dev/video*; do \
+	  prod=$$(udevadm info -n $$n | grep -Eo 'ID_V4L_PRODUCT=.*' | sed 's/ID_V4L_PRODUCT=//'); \
+	  fmts=$$(v4l2-ctl -d $$n --list-formats-ext 2>/dev/null | awk '/^\t\t\[/{p=1} p{print}' | tr -s ' ' | cut -d: -f2- | tr '\n' ' '); \
+	  hint=""; \
+	  echo "$$n  product:\"$$prod\"  fmts: $$fmts" | grep -qi 'IR' && hint="[IR-name]"; \
+	  echo "$$fmts" | grep -Eiq '(GREY|Y8|Y10|Y12)\b' && hint="$$hint[mono]"; \
+	  test -n "$$hint" && echo "  -> CANDIDATE $$n $$hint"; \
+	done || true
+
+# autopick the first by-id path that looks like IR (name says IR or only mono formats)
+howdy-pick-ir:
+	@set -euo pipefail; \
+	best=""; \
+	for n in /dev/video*; do \
+	  prod=$$(udevadm info -n $$n | grep -Eo 'ID_V4L_PRODUCT=.*' | sed 's/ID_V4L_PRODUCT=//'); \
+	  fmts=$$(v4l2-ctl -d $$n --list-formats-ext 2>/dev/null | awk '/^\t\t\[/{p=1} p{print}' | tr -s ' ' | cut -d: -f2-); \
+	  if echo "$$prod" | grep -qi 'IR'; then best="$$n"; break; fi; \
+	  if echo "$$fmts" | grep -Eiq '^\s*(GREY|Y8|Y10|Y12)\b' && ! echo "$$fmts" | grep -Eiq '\b(MJPG|YUYV|RGB)\b'; then best="$$n"; fi; \
+	done; \
+	test -n "$$best" || { echo "No obvious IR device found"; exit 1; }; \
+	link=$$(readlink -f "$$best"); \
+	byid=$$(ls -l /dev/v4l/by-id/ 2>/dev/null | awk -v t="$$link" '$$NF==t{print "/dev/v4l/by-id/"$$9; exit}'); \
+	path=$${byid:-$$best}; \
+	echo "Setting Howdy device to $$path"; \
+	sudo sed -i "s|^#\\?\\s*device_path\\s*=.*|device_path = $$path|" /etc/howdy/config.ini; \
+	grep -E '^\\s*device_path' /etc/howdy/config.ini
+
+# quick verify
+howdy-verify:
+	@echo "Config:" && grep -E '^\s*device_path' /etc/howdy/config.ini || true; \
+	echo "Test (Ctrl+C to stop):"; sudo howdy test || true
+
+
+
 # -------- Smoke tests --------
 
 # Show where/how Howdy will be evaluated at greeter
