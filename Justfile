@@ -28,12 +28,6 @@ HOWDY_LINE := "auth sufficient pam_howdy.so"
 	echo "-- howdy line:"
 	grep -n 'pam_howdy\.so' "${GDM_PAM}" || echo "(not present)"
 	echo
-	read -p "Continue? [y/N]: " -n 1 -r
-	echo
-	if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-	  echo "Aborted."
-	  exit 1
-	fi
 	echo "==> /etc/pam.d/sudo"
 	grep -n 'pam_howdy\.so' /etc/pam.d/sudo || echo "(not present)"
 	echo
@@ -46,7 +40,9 @@ pam-add howdy_in_sudo="0":
 	#!/usr/bin/env bash
 	echo "!!! WARNING !!!"
 	echo "This modifies PAM. TEST GNOME LOGIN AT THE GREETER BEFORE REBOOTING."
-	echo "If the greeter fails: Ctrl+Alt+F3 -> login -> 'just pam-revert' -> 'sudo systemctl restart gdm'"
+	echo "If the greeter fails: Ctrl+Alt+F3 -> login -> 'ujust pam-revert' -> 'sudo systemctl restart gdm'"
+	read -p "Proceed with PAM changes? [y/N]: " -n 1 -r; echo
+	[[ $REPLY =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
 	echo
 
 	# Backup current files
@@ -71,6 +67,7 @@ pam-add howdy_in_sudo="0":
 	    ' "${GDM_PAM}" > /tmp/gdm-password.new
 	  fi
 	  just sudoif install -m 0644 /tmp/gdm-password.new "${GDM_PAM}"
+	  just sudoif restorecon -v "${GDM_PAM}" || true
 	  rm -f /tmp/gdm-password.new
 	  echo "Inserted Howdy into ${GDM_PAM}"
 	else
@@ -82,6 +79,7 @@ pam-add howdy_in_sudo="0":
 	  if ! grep -q 'pam_howdy\.so' /etc/pam.d/sudo; then
 	    awk -v ins='${HOWDY_LINE}' 'BEGIN { print ins } { print }' /etc/pam.d/sudo > /tmp/sudo.new
 	    just sudoif install -m 0644 /tmp/sudo.new /etc/pam.d/sudo
+	    just sudoif restorecon -v /etc/pam.d/sudo || true
 	    rm -f /tmp/sudo.new
 	    echo "Inserted Howdy into /etc/pam.d/sudo"
 	  else
@@ -119,7 +117,7 @@ pam-revert:
 @pam-grep:
 	#!/usr/bin/env bash
 	echo "Auth lines in ${GDM_PAM}:"
-	nl -ba "${GDM_PAM}" | sed -n '1,120p' | sed -n '1,120p' | egrep -n "auth|pam_selinux_permit|pam_howdy" || true
+	nl -ba "${GDM_PAM}" | sed -n '1,120p' | grep -En "auth|pam_selinux_permit|pam_howdy" || true
 
 # Quick “does the module exist and link?”
 @howdy-info:
