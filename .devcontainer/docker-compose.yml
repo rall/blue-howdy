@@ -19,7 +19,7 @@ services:
       - XDG_RUNTIME_DIR=/tmp
     volumes:
       - ..:/app:Z
-      - /run/user/${UID}/pipewire-0:/tmp/pipewire-0
+      - /run/user/${UID:-1000}/pipewire-0:/tmp/pipewire-0
       - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
     devices:
       - /dev/snd:/dev/snd
