@@ -28,6 +28,12 @@ HOWDY_LINE := "auth sufficient pam_howdy.so"
 	echo "-- howdy line:"
 	grep -n 'pam_howdy\.so' "${GDM_PAM}" || echo "(not present)"
 	echo
+	read -p "Continue? [y/N]: " -n 1 -r
+	echo
+	if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+	  echo "Aborted."
+	  exit 1
+	fi
 	echo "==> /etc/pam.d/sudo"
 	grep -n 'pam_howdy\.so' /etc/pam.d/sudo || echo "(not present)"
 	echo
