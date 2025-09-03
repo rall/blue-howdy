@@ -15,9 +15,6 @@ RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy \
     libsepol libsemanage python3-libsemanage && \
     rpm-ostree cleanup -m
 
-# Avoid PATH issues during finalize
-RUN ln -sf /usr/sbin/semodule /usr/bin/semodule
-
 COPY selinux/howdy-selinux-setup /usr/libexec/howdy-selinux-setup
 RUN chmod 0755 /usr/libexec/howdy-selinux-setup
 COPY selinux/howdy_gdm.te /usr/share/selinux/howdy/howdy_gdm.te
