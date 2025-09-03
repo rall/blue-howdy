@@ -40,19 +40,19 @@ This repo includes a `Justfile` with safe helpers for PAM:
 
 - Show status of PAM files:
 
-      just pam-status
+      ujust pam-status
 
 - Add Howdy to GDM only:
 
-      just pam-add
+      ujust pam-add
 
 - Add Howdy to GDM + sudo:
 
-      just pam-add howdy_in_sudo=1
+      ujust pam-add howdy_in_sudo=1
 
 - Revert to most recent backups:
 
-      just pam-revert
+      ujust pam-revert
 
 Every `pam-add` run makes a timestamped backup of the PAM file. If the greeter fails, you can revert quickly:
 
@@ -74,7 +74,7 @@ Options:
 
 ## Development Environment
 
-The repo ships a devcontainer setup with Docker Compose and an aider container
+The repo ships a devcontainer setup with Docker Compose and an [aider](https://aider.chat/) container
 
 ---
 
