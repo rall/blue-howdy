@@ -52,6 +52,7 @@ jobs:
         run: |
           # Write base image to env
           echo "BASE_IMAGE=ghcr.io/ublue-os/${{ matrix.base }}:${{ matrix.stream }}" >> "$GITHUB_OUTPUT"
+          echo "Will build on ghcr.io/ublue-os/${{ matrix.base }}:${{ matrix.stream }}"
           # Lowercase the image uri
           echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}" >> ${GITHUB_ENV}
           # Construct image name: {base}-howdy (e.g. bluefin-dx-howdy)
@@ -127,6 +128,7 @@ jobs:
             BASE_IMAGE=${{ steps.base.outputs.BASE_IMAGE }}
           oci: true
           layers: true
+          extra-args: --pull-always
       # - name: Run Rechunker
       #   id: rechunk
       #   uses: hhd-dev/rechunk@f153348d8100c1f504dec435460a0d7baf11a9d2 # v1.1.1
