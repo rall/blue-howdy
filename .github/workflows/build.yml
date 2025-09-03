@@ -188,21 +188,3 @@ jobs:
           TAGS: ${{ steps.push.outputs.digest }}
           COSIGN_EXPERIMENTAL: false
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
-      
-      - name: Generate package.yaml
-        run: |
-          cat <<EOF > package.yaml
-          version: ${{ steps.metadata.outputs.tags }}
-          name: ${{ env.IMAGE_NAME }}
-          description: Bluefin Howdy container image
-          containersImages:
-            - name: ${{ matrix.stream }}
-              image: ghcr.io/${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.stream }}
-          EOF
-      - name: Publish to ArtifactHub
-        env:
-          AH_API_KEY: ${{ secrets.ARTIFACTHUB_API_KEY }}
-          AH_API_SECRET: ${{ secrets.ARTIFACTHUB_API_SECRET }}
-        run: |
-          pip install artifacthub
-          artifacthub push --api-key "$AH_API_KEY" --api-secret "$AH_API_SECRET" package.yaml
