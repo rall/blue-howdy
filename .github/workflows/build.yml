@@ -49,6 +49,8 @@ jobs:
     steps:
       - name: Prepare environment
         run: |
+          # Write base image to env
+          echo "BASE_IMAGE=ghcr.io/ublue-os/${{ matrix.base }}:${{ matrix.stream }}" >> "$GITHUB_OUTPUT"
           # Lowercase the image uri
           echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}" >> ${GITHUB_ENV}
           # Construct image name: {base}-howdy (e.g. bluefin-dx-howdy)
