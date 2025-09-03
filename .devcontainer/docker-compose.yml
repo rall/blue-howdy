@@ -1,0 +1,29 @@
+services:
+  dev:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - /var/run/docker.sock:/var/run/docker-host.sock 
+      - ..:/workspaces/blue-howdy:Z
+    entrypoint: /usr/local/share/docker-init.sh
+    command: sleep infinity 
+
+  aider:
+    image: ghcr.io/rall/aider-pipewire:latest
+    tty: true
+    stdin_open: true
+    user: "${UID:-1000}:${GID:-1000}"
+    working_dir: /app
+    environment:
+      - XDG_RUNTIME_DIR=/tmp
+    volumes:
+      - ..:/app:Z
+      - /run/user/${UID}/pipewire-0:/tmp/pipewire-0
+      - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
+    devices:
+      - /dev/snd:/dev/snd
+    group_add: 
+      - audio
+    cap_add:
+      - SYS_NICE

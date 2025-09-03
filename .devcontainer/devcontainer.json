@@ -1,0 +1,26 @@
+{
+	"name": "Docker from Docker Compose",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "dev",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"runServices": ["dev", "aider"],
+	"containerEnv": {
+		"UID": "${localEnv:UID}",
+		"GID": "${localEnv:GID}"
+	},
+	"features": {
+		"ghcr.io/devcontainers/features/git:1": {},
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+			"version": "latest",
+			"enableNonRootDocker": "true",
+			"moby": "true"
+		}
+	},
+    "customizations": {
+        "vscode": {
+            "extensions": [ "mattflower.aider" ]
+        }
+    }
+	// // Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+}

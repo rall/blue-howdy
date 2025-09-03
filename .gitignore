@@ -2,3 +2,9 @@ cosign.key
 _build_*
 output
 _build-*/**
+.aider*
+.vscode-server
+.gitconfig
+.bash_history
+.cache
+.env
