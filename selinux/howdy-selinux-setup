@@ -7,13 +7,21 @@ LOG_TAG="howdy-selinux-setup"
 
 log(){ logger -t "$LOG_TAG" -- "$*"; }
 
+# Resolve semodule path (prefer absolute), bail quietly if missing
+SEM="/usr/sbin/semodule"
+[ -x "$SEM" ] || SEM="$(command -v semodule || true)"
+if [ -z "${SEM:-}" ]; then
+  log "semodule not found; is policycoreutils installed? skipping"
+  exit 0
+fi
+
 # Only act on SELinux-enabled systems
 if ! sestatus >/dev/null 2>&1 || ! sestatus 2>/dev/null | grep -q 'enabled'; then
   exit 0
 fi
 
 # Exit if already installed
-if semodule -l | awk '{print $1}' | grep -qx howdy_gdm; then
+if "$SEM" -l | awk '{print $1}' | grep -qx howdy_gdm; then
   exit 0
 fi
 
@@ -31,7 +39,7 @@ else
 fi
 
 # Try to install the compiled module
-if semodule -i "$WRK/howdy_gdm.pp" 2>/dev/null; then
+if "$SEM" -i "$WRK/howdy_gdm.pp" 2>/dev/null; then
   log "installed TE module"
   exit 0
 fi
@@ -41,7 +49,7 @@ if command -v ausearch >/dev/null && command -v audit2allow >/dev/null; then
   (ausearch -m avc -ts boot || ausearch -m avc -ts recent) > "$WRK/howdy.avc" || true
   if [ -s "$WRK/howdy.avc" ]; then
     log "installing AVC-derived module"
-    audit2allow -M howdy_gdm_auto -i "$WRK/howdy.avc" && semodule -X 400 -i howdy_gdm_auto.pp || true
+    audit2allow -M howdy_gdm_auto -i "$WRK/howdy.avc" && "$SEM" -X 400 -i howdy_gdm_auto.pp || true
   fi
 fi
 
