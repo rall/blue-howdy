@@ -1,128 +1,109 @@
-# Howdy on Bluefin Developer DX + Nvidia Drivers 
+# Blue-Howdy
 
-This Bluefin image adds howdy for biometric auth
+Bluefin images that enable **Howdy face login** out of the box, with **SELinux enforcing**.
 
-# Building Disk Images
+---
 
-This template provides an out of the box workflow for creating disk images (ISO, qcow, raw) for your custom OCI image which can be used to directly install onto your machines.
+## What these images do
 
-This template provides a way to upload the disk images that is generated from the workflow to a S3 bucket. The disk images will also be available as an artifact from the job, if you wish to use an alternate provider. To upload to S3 we use [rclone](https://rclone.org/) which is able to use [many S3 providers](https://rclone.org/s3/).
+- Based on Bluefin (plain, dx, nvidia, nvidia-open; `gts`/`latest`).
+- Ship Howdy for biometric authentication at the display manager.
+- Include SELinux tooling and install a custom module on first boot:
+  - Grants `gdm_t`, `xdm_t`, `sddm_t`, `lightdm_t` access to `/dev/video*`.
+  - Compiles policy from a raw `.te` at boot.
+  - Falls back to AVC-derived module if install fails.
+  - **Never** sets domains to permissive.
+- A systemd unit (`howdy-selinux-install.service`) runs the helper at boot.
 
-## Setting Up ISO Builds
+---
 
-The [build-disk.yml](./.github/workflows/build-disk.yml) Github Actions workflow creates a disk image from your OCI image by utilizing the [bootc-image-builder](https://osbuild.org/docs/bootc/). In order to use this workflow you must complete the following steps:
+## PAM Configuration
 
-1. Modify `disk_config/iso.toml` to point to your custom container image before generating an ISO image.
-2. If you changed your image name from the default in `build.yml` then in the `build-disk.yml` file edit the `IMAGE_REGISTRY`, `IMAGE_NAME` and `DEFAULT_TAG` environment variables with the correct values. If you did not make changes, skip this step.
-3. Finally, if you want to upload your disk images to S3 then you will need to add your S3 configuration to the repository's Action secrets. This can be found by going to your repository settings, under `Secrets and Variables` -> `Actions`. You will need to add the following
-  - `S3_PROVIDER` - Must match one of the values from the [supported list](https://rclone.org/s3/)
-  - `S3_BUCKET_NAME` - Your unique bucket name
-  - `S3_ACCESS_KEY_ID` - It is recommended that you make a separate key just for this workflow
-  - `S3_SECRET_ACCESS_KEY` - See above.
-  - `S3_REGION` - The region your bucket lives in. If you do not know then set this value to `auto`.
-  - `S3_ENDPOINT` - This value will be specific to the bucket as well.
+To actually use Howdy, PAM must be updated:
 
-Once the workflow is done, you'll find the disk images either in your S3 bucket or as part of the summary under `Artifacts` after the workflow is completed.
+- **GDM login**: edit `/etc/pam.d/gdm-password` and add:
 
-# Artifacthub
+      auth sufficient pam_howdy.so
 
-This template comes with the necessary tooling to index your image on [artifacthub.io](https://artifacthub.io). Use the `artifacthub-repo.yml` file at the root to verify yourself as the publisher. This is important to you for a few reasons:
+  right after `pam_selinux_permit.so`.
 
-- The value of artifacthub is it's one place for people to index their custom images, and since we depend on each other to learn, it helps grow the community. 
-- You get to see your pet project listed with the other cool projects in Cloud Native.
-- Since the site puts your README front and center, it's a good way to learn how to write a good README, learn some marketing, finding your audience, etc. 
+- **Sudo** (optional): add the same line at the top of `/etc/pam.d/sudo`.
 
-[Discussion Thread](https://universal-blue.discourse.group/t/listing-your-custom-image-on-artifacthub/6446)
+**Warning:** Always test Howdy at the GNOME greeter **before rebooting**.  
+If it fails, switch to a TTY (Ctrl+Alt+F3), log in with your password, and revert.
 
-# Justfile Documentation
+---
 
-The `Justfile` contains various commands and configurations for building and managing container images and virtual machine images using Podman and other utilities.
-To use it, you must have installed [just](https://just.systems/man/en/introduction.html) from your package manager or manually. It is available by default on all Universal Blue images.
+## Justfile Tasks
 
-## Environment Variables
+This repo includes a `Justfile` with safe helpers for PAM:
 
-- `image_name`: The name of the image (default: "image-template").
-- `default_tag`: The default tag for the image (default: "latest").
-- `bib_image`: The Bootc Image Builder (BIB) image (default: "quay.io/centos-bootc/bootc-image-builder:latest").
+- Show status of PAM files:
 
-## Building The Image
+      just pam-status
 
-### `just build`
+- Add Howdy to GDM only:
 
-Builds a container image using Podman.
+      just pam-add
 
-```bash
-just build $target_image $tag
-```
+- Add Howdy to GDM + sudo:
 
-Arguments:
-- `$target_image`: The tag you want to apply to the image (default: `$image_name`).
-- `$tag`: The tag for the image (default: `$default_tag`).
+      just pam-add howdy_in_sudo=1
 
-## Building and Running Virtual Machines and ISOs
+- Revert to most recent backups:
 
-The below commands all build QCOW2 images. To produce or use a different type of image, substitute in the command with that type in the place of `qcow2`. The available types are `qcow2`, `iso`, and `raw`.
+      just pam-revert
 
-### `just build-qcow2`
+Every `pam-add` run makes a timestamped backup of the PAM file. If the greeter fails, you can revert quickly:
 
-Builds a QCOW2 virtual machine image.
+    Ctrl+Alt+F3
+    just pam-revert
+    sudo systemctl restart gdm
 
-```bash
-just build-qcow2 $target_image $tag
-```
+---
 
-### `just rebuild-qcow2`
+## GNOME Keyring Note
 
-Rebuilds a QCOW2 virtual machine image.
+Howdy unlocks your session, but GNOME Keyring still requires your password to unlock the login keyring. This is expected — PAM never had a password to pass along.
 
-```bash
-just rebuild-vm $target_image $tag
-```
+Options:
+- Accept the prompt (secure default).
+- Blank the keyring password in Seahorse (less secure).
 
-### `just run-vm-qcow2`
+---
 
-Runs a virtual machine from a QCOW2 image.
+## Development Environment
 
-```bash
-just run-vm-qcow2 $target_image $tag
-```
+The repo ships a devcontainer setup with Docker Compose and an aider container
 
-### `just spawn-vm`
+---
 
-Runs a virtual machine using systemd-vmspawn.
+## Building the Images
 
-```bash
-just spawn-vm rebuild="0" type="qcow2" ram="6G"
-```
+Local build and switch with bootc:
 
-## File Management
+    podman build \
+      --build-arg BASE_IMAGE=ghcr.io/ublue-os/bluefin-dx-nvidia-open:gts \
+      -t blue-howdy:gts .
 
-### `just check`
+    sudo bootc switch localhost/blue-howdy:gts
 
-Checks the syntax of all `.just` files and the `Justfile`.
+---
 
-### `just fix`
+## Troubleshooting
 
-Fixes the syntax of all `.just` files and the `Justfile`.
+- **Policy install fails** (`semodule: policy store corrupt`):
 
-### `just clean`
+      sudo systemctl start selinux-autorelabel-mark.service || sudo touch /sysroot/.autorelabel
+      sudo reboot
+      sudo restorecon -RFv /etc/selinux /var/lib/selinux
+      sudo semodule -B
 
-Cleans the repository by removing build artifacts.
+- **Camera blocked at greeter**:  
+  Ensure `/dev/video*` is labeled `video_device_t`:
 
-### `just lint`
+      ls -Z /dev/video*
+      restorecon -v /dev/video*
 
-Runs shell check on all Bash scripts.
+- **Howdy prompts missing**: rerun `just pam-status` to confirm PAM lines are present.
 
-### `just format`
-
-Runs shfmt on all Bash scripts.
-
-## Community Examples
-
-These are images derived from this template (or similar enough to this template). Reference them when building your image!
-
-- [m2Giles' OS](https://github.com/m2giles/m2os)
-- [bOS](https://github.com/bsherman/bos)
-- [Homer](https://github.com/bketelsen/homer/)
-- [Amy OS](https://github.com/astrovm/amyos)
-- [VeneOS](https://github.com/Venefilyn/veneos)
