@@ -48,6 +48,7 @@ jobs:
 
     steps:
       - name: Prepare environment
+        id: base
         run: |
           # Write base image to env
           echo "BASE_IMAGE=ghcr.io/ublue-os/${{ matrix.base }}:${{ matrix.stream }}" >> "$GITHUB_OUTPUT"
@@ -119,13 +120,13 @@ jobs:
         with:
           containerfiles: |
             ./Containerfile
-          # Postfix image name with -custom to make it a little more descriptive
-          # Syntax: https://docs.github.com/en/actions/learn-github-actions/expressions#format
           image: ${{ env.IMAGE_NAME }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
-          oci: false
-
+          build-args:  |
+            BASE_IMAGE=${{ steps.base.outputs.BASE_IMAGE }}
+          oci: true
+          layers: true
       # - name: Run Rechunker
       #   id: rechunk
       #   uses: hhd-dev/rechunk@f153348d8100c1f504dec435460a0d7baf11a9d2 # v1.1.1

@@ -1,13 +1,13 @@
 ARG BASE_IMAGE=ghcr.io/ublue-os/bluefin-dx-nvidia-open:gts
 FROM ${BASE_IMAGE} AS base
-ARG BASE_IMAGE
-LABEL org.rall.base_image="${BASE_IMAGE}"
 
 # Allow build scripts to be referenced without being copied into the final image
 FROM scratch AS ctx
 COPY build_files /
 
 FROM base
+ARG BASE_IMAGE
+LABEL org.rall.base_image="${BASE_IMAGE}"
 RUN dnf5 -y clean all && dnf5 -y makecache --refresh || true
 
 RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy \
