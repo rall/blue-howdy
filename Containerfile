@@ -32,6 +32,11 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build.sh
 
+# add just tasks to global recipes
+RUN install -d -m 0755 /usr/share/ublue-os/just
+COPY Justfile /usr/share/ublue-os/just/blue-howdy.just
+RUN chmod 0644 /usr/share/ublue-os/just/blue-howdy.just
+
 RUN ostree container commit
 
 # Verify final image and contents are correct.
