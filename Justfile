@@ -19,7 +19,6 @@ HOWDY_LINE := "auth sufficient pam_howdy.so"
 
 # Add Howdy to GDM and/or sudo; interactive, idempotent, with backups
 howdy-pam-add:
-    #!/usr/bin/env bash
     echo "!!! WARNING !!!"
     echo "This modifies PAM. TEST GNOME LOGIN AT THE GREETER BEFORE REBOOTING."
     echo "If the greeter fails: Ctrl+Alt+F3 -> login -> 'ujust howdy-pam-revert' -> 'sudo systemctl restart gdm'"
@@ -76,8 +75,6 @@ howdy-pam-add:
 
 # Restore most recent backups
 howdy-pam-revert:
-    #!/usr/bin/env bash
-    set -euo pipefail
     echo "Restoring most recent PAM backups (if any)..."
     latest_gdm="$(ls -1t {{GDM_PAM}}.bak.* 2>/dev/null | head -n1 || true)"
     if [[ -n "${latest_gdm}" ]]; then
@@ -103,30 +100,45 @@ howdy-detect:
 
 # show devices which probably support IR
 howdy-ir-candidates:
-    @set -euo pipefail; \
-    for n in /dev/video*; do \
-      prod=$$(udevadm info -n $$n | grep -Eo 'ID_V4L_PRODUCT=.*' | sed 's/ID_V4L_PRODUCT=//'); \
-      fmts=$$(v4l2-ctl -d $$n --list-formats-ext 2>/dev/null | awk '/^\t\t\[/{p=1} p{print}' | tr -s ' ' | cut -d: -f2- | tr '\n' ' '); \
-      hint=""; \
-      echo "$$n  product:\"$$prod\"  fmts: $$fmts" | grep -qi 'IR' && hint="[IR-name]"; \
-      echo "$$fmts" | grep -Eiq '(GREY|Y8|Y10|Y12)\b' && hint="$$hint[mono]"; \
-      test -n "$$hint" && echo "  -> CANDIDATE $$n $$hint"; \
-    done || true
+    @for n in /dev/video*; do \
+        prod="$$(udevadm info -n $$n | sed -n 's/^E: ID_V4L_PRODUCT=//p')"; \
+        fmts="$$(v4l2-ctl -d $$n --list-formats-ext 2>/dev/null \
+            | awk '/^\t\t\[/ {p=1} p {print}' \
+            | tr -s " " \
+            | cut -d: -f2- \
+            | tr "\n" " ")"; \
+        ir_name=0; mono_only=0; \
+        printf "%s  product:\"%s\"  fmts: %s\n" "$$n" "$$prod" "$$fmts"; \
+        printf "%s" "$$prod" | grep -qiE "(^|[[:space:]])IR([[:space:]]|$$)" && ir_name=1; \
+        printf "%s" "$$fmts" | grep -qiE "(^|[[:space:]])(GREY|Y8|Y10|Y12)([[:space:]]|$$)" && mono_only=1; \
+        if [ "$$ir_name" -eq 1 ] || [ "$$mono_only" -eq 1 ]; then \
+            hint=""; \
+            [ "$$ir_name" -eq 1 ] && hint="$$hint[IR-name]"; \
 
 # autopick the first by-id path that looks like IR (name says IR or only mono formats)
 howdy-pick-ir:
-    @set -euo pipefail; \
-    best=""; \
+    @best=""; \
     for n in /dev/video*; do \
-      prod=$$(udevadm info -n $$n | grep -Eo 'ID_V4L_PRODUCT=.*' | sed 's/ID_V4L_PRODUCT=//'); \
-      fmts=$$(v4l2-ctl -d $$n --list-formats-ext 2>/dev/null | awk '/^\t\t\[/{p=1} p{print}' | tr -s ' ' | cut -d: -f2-); \
-      if echo "$$prod" | grep -qi 'IR'; then best="$$n"; break; fi; \
-      if echo "$$fmts" | grep -Eiq '^\s*(GREY|Y8|Y10|Y12)\b' && ! echo "$$fmts" | grep -Eiq '\b(MJPG|YUYV|RGB)\b'; then best="$$n"; fi; \
+        prod="$$(udevadm info -n $$n | sed -n 's/^E: ID_V4L_PRODUCT=//p')"; \
+        fmts="$$(v4l2-ctl -d $$n --list-formats-ext 2>/dev/null \
+            | awk '/^\t\t\[/ {p=1} p {print}' \
+            | tr -s " " \
+            | cut -d: -f2- \
+            | tr "\n" " ")"; \
+        if printf "%s" "$$prod" | grep -qiE "(^|[[:space:]])IR([[:space:]]|$$)"; then \
+            best="$$n"; \
+            break; \
+        fi; \
+        if printf "%s" "$$fmts" | grep -qiE "(^|[[:space:]])(GREY|Y8|Y10|Y12)([[:space:]]|$$)"; then \
+            if ! printf "%s" "$$fmts" | grep -qiE "(^|[[:space:]])(MJPG|YUYV|RGB)([[:space:]]|$$)"; then \
+                best="$$n"; \
+            fi; \
+        fi; \
     done; \
     test -n "$$best" || { echo "No obvious IR device found"; exit 1; }; \
-    link=$$(readlink -f "$$best"); \
-    byid=$$(ls -l /dev/v4l/by-id/ 2>/dev/null | awk -v t="$$link" '$$NF==t{print "/dev/v4l/by-id/"$$9; exit}'); \
-    path=$${byid:-$$best}; \
+    link="$$(readlink -f "$$best")"; \
+    byid="$$(ls -l /dev/v4l/by-id/ 2>/dev/null | awk -v t="$$link" '$$NF==t{print "/dev/v4l/by-id/"$$9; exit}')"; \
+    path="$${byid:-$$best}"; \
     echo "Setting Howdy device to $$path"; \
     sudo sed -i "s|^#\\?\\s*device_path\\s*=.*|device_path = $$path|" /etc/howdy/config.ini; \
     grep -E '^\\s*device_path' /etc/howdy/config.ini
