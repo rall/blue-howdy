@@ -1,5 +1,7 @@
 # Strict shell for every recipe
 set shell := ["bash", "-euo", "pipefail", "-c"]
+# Export all assignment variables into the recipe environment
+set export
 
 # -------- Helpers --------
 
@@ -18,15 +20,11 @@ HOWDY_LINE := "auth sufficient pam_howdy.so"
 
 @pam-status:
 	#!/usr/bin/env bash
-	echo "==> ${GDM_PAM}"
-	if [[ ! -f "${GDM_PAM}" ]]; then
-	  echo "Missing: ${GDM_PAM}" >&2
-	  exit 1
-	fi
+	echo "==> {{GDM_PAM}}"
 	echo "-- anchor (pam_selinux_permit.so):"
-	grep -n 'pam_selinux_permit\.so' "${GDM_PAM}" || echo "(not found)"
+	grep -n 'pam_selinux_permit\.so' "{{GDM_PAM}}" || echo "(not found)"
 	echo "-- howdy line:"
-	grep -n 'pam_howdy\.so' "${GDM_PAM}" || echo "(not present)"
+	grep -n 'pam_howdy\.so' "{{GDM_PAM}}" || echo "(not present)"
 	echo
 	echo
 	echo "==> /etc/pam.d/sudo"
@@ -47,39 +45,39 @@ pam-add howdy_in_sudo="0":
 	echo
 
 	# Backup current files
-	just sudoif cp -a "${GDM_PAM}" "${GDM_PAM}.bak.${ts}"
+	just sudoif cp -a "{{GDM_PAM}}" "{{GDM_PAM}}.bak.{{ts}}"
 	if [[ "${howdy_in_sudo}" == "1" && -f /etc/pam.d/sudo ]]; then
-	  just sudoif cp -a /etc/pam.d/sudo "/etc/pam.d/sudo.bak.${ts}"
+	  just sudoif cp -a /etc/pam.d/sudo "/etc/pam.d/sudo.bak.{{ts}}"
 	fi
 
 	# Inject into gdm-password only if missing
-	if ! grep -q 'pam_howdy\.so' "${GDM_PAM}"; then
-	  if grep -q 'pam_selinux_permit\.so' "${GDM_PAM}"; then
+	if ! grep -q 'pam_howdy\.so' "{{GDM_PAM}}"; then
+	  if grep -q 'pam_selinux_permit\.so' "{{GDM_PAM}}"; then
 	    # Insert right after pam_selinux_permit.so
-	    awk -v ins='${HOWDY_LINE}' '
+	    awk -v ins='{{HOWDY_LINE}}' '
 	      { print }
 	      $0 ~ /pam_selinux_permit\.so/ { print ins }
-	    ' "${GDM_PAM}" > /tmp/gdm-password.new
+	    ' "{{GDM_PAM}}" > /tmp/gdm-password.new
 	  else
 	    # Fallback: make it the first auth line
-	    awk -v ins='${HOWDY_LINE}' '
+	    awk -v ins='{{HOWDY_LINE}}' '
 	      BEGIN { print ins }
 	      { print }
-	    ' "${GDM_PAM}" > /tmp/gdm-password.new
+	    ' "{{GDM_PAM}}" > /tmp/gdm-password.new
 	  fi
-	  just sudoif install -m 0644 /tmp/gdm-password.new "${GDM_PAM}"
-	  just sudoif restorecon -v "${GDM_PAM}" || true
-	  just sudoif restorecon -v "${GDM_PAM}" || true
+	  just sudoif install -m 0644 /tmp/gdm-password.new "{{GDM_PAM}}"
+	  just sudoif restorecon -v "{{GDM_PAM}}" || true
+	  just sudoif restorecon -v "{{GDM_PAM}}" || true
 	  rm -f /tmp/gdm-password.new
-	  echo "Inserted Howdy into ${GDM_PAM}"
+	  echo "Inserted Howdy into {{GDM_PAM}}"
 	else
-	  echo "Howdy already present in ${GDM_PAM}"
+	  echo "Howdy already present in {{GDM_PAM}}"
 	fi
 
 	# Optional sudo integration: prepend as first line if missing
 	if [[ "${howdy_in_sudo}" == "1" && -f /etc/pam.d/sudo ]]; then
 	  if ! grep -q 'pam_howdy\.so' /etc/pam.d/sudo; then
-	    awk -v ins='${HOWDY_LINE}' 'BEGIN { print ins } { print }' /etc/pam.d/sudo > /tmp/sudo.new
+	    awk -v ins='{{HOWDY_LINE}}' 'BEGIN { print ins } { print }' /etc/pam.d/sudo > /tmp/sudo.new
 	    just sudoif install -m 0644 /tmp/sudo.new /etc/pam.d/sudo
 	    just sudoif restorecon -v /etc/pam.d/sudo || true
 	    just sudoif restorecon -v /etc/pam.d/sudo || true
@@ -98,12 +96,12 @@ pam-revert:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	echo "Restoring most recent PAM backups (if any)..."
-	latest_gdm="$(ls -1t ${GDM_PAM}.bak.* 2>/dev/null | head -n1 || true)"
+	latest_gdm="$(ls -1t {{GDM_PAM}}.bak.* 2>/dev/null | head -n1 || true)"
 	if [[ -n "${latest_gdm}" ]]; then
-	  echo "Restoring ${latest_gdm} -> ${GDM_PAM}"
-	  just sudoif install -m 0644 "${latest_gdm}" "${GDM_PAM}"
+	  echo "Restoring ${latest_gdm} -> {{GDM_PAM}}"
+	  just sudoif install -m 0644 "${latest_gdm}" "{{GDM_PAM}}"
 	else
-	  echo "No backup found for ${GDM_PAM}"
+	  echo "No backup found for {{GDM_PAM}}"
 	fi
 	latest_sudo="$(ls -1t /etc/pam.d/sudo.bak.* 2>/dev/null | head -n1 || true)"
 	if [[ -n "${latest_sudo}" ]]; then
@@ -160,8 +158,8 @@ howdy-verify:
 # Show where/how Howdy will be evaluated at greeter
 @pam-grep:
 	#!/usr/bin/env bash
-	echo "Auth lines in ${GDM_PAM}:"
-	nl -ba "${GDM_PAM}" | sed -n '1,120p' | grep -En "auth|pam_selinux_permit|pam_howdy" || true
+	echo "Auth lines in {{GDM_PAM}}:"
+	nl -ba "{{GDM_PAM}}" | sed -n '1,120p' | grep -En "auth|pam_selinux_permit|pam_howdy" || true
 
 # Quick “does the module exist and link?”
 @howdy-info:
