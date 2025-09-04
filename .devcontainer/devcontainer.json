@@ -18,7 +18,7 @@
 	},
     "customizations": {
         "vscode": {
-            "extensions": [ "mattflower.aider" ]
+            "extensions": [ "mattflower.aider", "skellock.just", "tobiashochguertel.just-formatter" ]
         }
     }
 	// // Use 'forwardPorts' to make a list of ports inside the container available locally.
