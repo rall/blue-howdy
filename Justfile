@@ -1,12 +1,9 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
-
-# Export all assignment variables into the recipe environment
-
+set quiet := true
 set export := true
 
-# -------- Helpers --------
-
 # Run command as root if needed
+
 sudoif cmd +args='':
     @if [[ $EUID -ne 0 ]]; then sudo {{ cmd }} {{ args }}; else {{ cmd }} {{ args }}; fi
 
@@ -19,16 +16,14 @@ ts := `date +%Y%m%d-%H%M%S`
 GDM_PAM := "/etc/pam.d/gdm-password"
 HOWDY_LINE := "auth sufficient pam_howdy.so"
 
-# -------- Apply / Revert --------
-
 # Add Howdy to GDM and/or sudo; interactive, idempotent, with backups
 howdy-pam-add:
     echo "!!! WARNING !!!"
     echo "This modifies PAM. TEST GNOME LOGIN AT THE GREETER BEFORE REBOOTING."
     echo "If the greeter fails: Ctrl+Alt+F3 -> login -> 'ujust howdy-pam-revert' -> 'sudo systemctl restart gdm'"
     # --- GDM (interactive, no-op if already present) ---
-    read -p "Add Howdy to GDM login ({{ GDM_PAM }})? [y/N]: " -n 1 -r; echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+    read -p "Add Howdy to GDM login ({{ GDM_PAM }})? [y/N]: " -n 1 -r;
+    if [[ $REPLY =~ ^[Yy]$]]; then
     if grep -q 'pam_howdy\.so' "{{ GDM_PAM }}"; then
     echo "Howdy already present in {{ GDM_PAM }}; skipping."
     else
@@ -54,16 +49,17 @@ howdy-pam-add:
 
     # --- sudo (interactive, no-op if already present) ---
     if [[ -f /etc/pam.d/sudo ]]; then
-    read -p "Also add Howdy to sudo (/etc/pam.d/sudo)? [y/N]: " -n 1 -r; echo
+    read -p "Also add Howdy to sudo (/etc/pam.d/sudo)? [y/N]: " -n 1 -r;
+    echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
     if grep -q 'pam_howdy\.so' /etc/pam.d/sudo; then
     echo "Howdy already present in /etc/pam.d/sudo; skipping."
     else
     just sudoif cp -a /etc/pam.d/sudo "/etc/pam.d/sudo.bak.{{ ts }}"
-    awk -v ins='${HOWDY_LINE}' '
+    awk -v ins='{{ HOWDY_LINE }}' '
     NR==1 && $0 ~ /^#%PAM-1\.0/ { print; print ins; next }
     { print }
-    ' "${GDM_PAM}" > /tmp/gdm-password.new
+    ' "{{ GDM_PAM }}" > /tmp/gdm-password.new
     just sudoif install -m 0644 /tmp/sudo.new /etc/pam.d/sudo
     just sudoif restorecon -v /etc/pam.d/sudo || true
     just sudoif restorecon -v /etc/pam.d/sudo || true
@@ -138,10 +134,10 @@ howdy-pick-ir:
     fi;
     fi;
     done;
-    test -n "$$best" || { echo "No obvious IR device found"; exit 1; }; \
-    link="$$(readlink -f "$$best")"; \
-    byid="$$(ls -l /dev/v4l/by-id/ 2>/dev/null | awk -v t="$$link" '$$NF==t{print "/dev/v4l/by-id/"$$9; exit}')"; \
-    path="$${byid:-$$best}"; \
-    echo "Setting Howdy device to $$path"; \
-    sudo sed -i "s|^#\\?\\s*device_path\\s*=.*|device_path = $$path|" /etc/howdy/config.ini; \
+    test -n "$$best" || { echo "No obvious IR device found"; exit 1; };
+    link="$$(readlink -f "$$best")";
+    byid="$$(ls -l /dev/v4l/by-id/ 2>/dev/null | awk -v t="$$link" '$$NF==t{print "/dev/v4l/by-id/"$$9; exit}')";
+    path="$${byid:-$$best}";
+    echo "Setting Howdy device to $$path";
+    sudo sed -i "s|^#\\?\\s*device_path\\s*=.*|device_path = $$path|" /etc/howdy/config.ini;
     grep -E '^\\s*device_path' /etc/howdy/config.ini
