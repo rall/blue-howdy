@@ -1,4 +1,3 @@
-# Strict shell for every recipe
 set shell := ["bash", "-euo", "pipefail", "-c"]
 # Export all assignment variables into the recipe environment
 set export
@@ -16,75 +15,56 @@ ts := `date +%Y%m%d-%H%M%S`
 GDM_PAM := "/etc/pam.d/gdm-password"
 HOWDY_LINE := "auth sufficient pam_howdy.so"
 
-# -------- Status --------
-
-@pam-status:
-	#!/usr/bin/env bash
-	echo "==> {{GDM_PAM}}"
-	echo "-- anchor (pam_selinux_permit.so):"
-	grep -n 'pam_selinux_permit\.so' "{{GDM_PAM}}" || echo "(not found)"
-	echo "-- howdy line:"
-	grep -n 'pam_howdy\.so' "{{GDM_PAM}}" || echo "(not present)"
-	echo
-	echo
-	echo "==> /etc/pam.d/sudo"
-	grep -n 'pam_howdy\.so' /etc/pam.d/sudo || echo "(not present)"
-	echo
-	echo "Tip: Lock screen or switch user to test Howdy at greeter BEFORE rebooting."
-
 # -------- Apply / Revert --------
 
-# Add Howdy to GDM and (optionally) sudo; idempotent, with backups
-pam-add howdy_in_sudo="0":
+# Add Howdy to GDM and/or sudo; interactive, idempotent, with backups
+howdy-pam-add:
 	#!/usr/bin/env bash
 	echo "!!! WARNING !!!"
 	echo "This modifies PAM. TEST GNOME LOGIN AT THE GREETER BEFORE REBOOTING."
-	echo "If the greeter fails: Ctrl+Alt+F3 -> login -> 'ujust pam-revert' -> 'sudo systemctl restart gdm'"
-	read -p "Proceed with PAM changes? [y/N]: " -n 1 -r; echo
-	[[ $REPLY =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
-	echo
+	echo "If the greeter fails: Ctrl+Alt+F3 -> login -> 'ujust howdy-pam-revert' -> 'sudo systemctl restart gdm'"
 
-	# Backup current files
-	just sudoif cp -a "{{GDM_PAM}}" "{{GDM_PAM}}.bak.{{ts}}"
-	if [[ "${howdy_in_sudo}" == "1" && -f /etc/pam.d/sudo ]]; then
-	  just sudoif cp -a /etc/pam.d/sudo "/etc/pam.d/sudo.bak.{{ts}}"
-	fi
-
-	# Inject into gdm-password only if missing
-	if ! grep -q 'pam_howdy\.so' "{{GDM_PAM}}"; then
-	  if grep -q 'pam_selinux_permit\.so' "{{GDM_PAM}}"; then
-	    # Insert right after pam_selinux_permit.so
-	    awk -v ins='{{HOWDY_LINE}}' '
-	      { print }
-	      $0 ~ /pam_selinux_permit\.so/ { print ins }
-	    ' "{{GDM_PAM}}" > /tmp/gdm-password.new
+	# --- GDM (interactive, no-op if already present) ---
+	read -p "Add Howdy to GDM login ({{GDM_PAM}})? [y/N]: " -n 1 -r; echo
+	if [[ $REPLY =~ ^[Yy]$ ]]; then
+	  if grep -q 'pam_howdy\.so' "{{GDM_PAM}}"; then
+	    echo "Howdy already present in {{GDM_PAM}}; skipping."
 	  else
-	    # Fallback: make it the first auth line
-	    awk -v ins='{{HOWDY_LINE}}' '
-	      BEGIN { print ins }
-	      { print }
-	    ' "{{GDM_PAM}}" > /tmp/gdm-password.new
+	    just sudoif cp -a "{{GDM_PAM}}" "{{GDM_PAM}}.bak.{{ts}}"
+	    if grep -q 'pam_selinux_permit\.so' "{{GDM_PAM}}"; then
+	      awk -v ins='{{HOWDY_LINE}}' '
+	        { print }
+	        $0 ~ /pam_selinux_permit\.so/ { print ins }
+	      ' "{{GDM_PAM}}" > /tmp/gdm-password.new
+	    else
+	      awk -v ins='{{HOWDY_LINE}}' '
+	        BEGIN { print ins }
+	        { print }
+	      ' "{{GDM_PAM}}" > /tmp/gdm-password.new
+	    fi
+	    just sudoif install -m 0644 /tmp/gdm-password.new "{{GDM_PAM}}"
+	    just sudoif restorecon -v "{{GDM_PAM}}" || true
+	    just sudoif restorecon -v "{{GDM_PAM}}" || true
+	    rm -f /tmp/gdm-password.new
+	    echo "Inserted Howdy into {{GDM_PAM}}"
 	  fi
-	  just sudoif install -m 0644 /tmp/gdm-password.new "{{GDM_PAM}}"
-	  just sudoif restorecon -v "{{GDM_PAM}}" || true
-	  just sudoif restorecon -v "{{GDM_PAM}}" || true
-	  rm -f /tmp/gdm-password.new
-	  echo "Inserted Howdy into {{GDM_PAM}}"
-	else
-	  echo "Howdy already present in {{GDM_PAM}}"
 	fi
 
-	# Optional sudo integration: prepend as first line if missing
-	if [[ "${howdy_in_sudo}" == "1" && -f /etc/pam.d/sudo ]]; then
-	  if ! grep -q 'pam_howdy\.so' /etc/pam.d/sudo; then
-	    awk -v ins='{{HOWDY_LINE}}' 'BEGIN { print ins } { print }' /etc/pam.d/sudo > /tmp/sudo.new
-	    just sudoif install -m 0644 /tmp/sudo.new /etc/pam.d/sudo
-	    just sudoif restorecon -v /etc/pam.d/sudo || true
-	    just sudoif restorecon -v /etc/pam.d/sudo || true
-	    rm -f /tmp/sudo.new
-	    echo "Inserted Howdy into /etc/pam.d/sudo"
-	  else
-	    echo "Howdy already present in /etc/pam.d/sudo"
+	# --- sudo (interactive, no-op if already present) ---
+	if [[ -f /etc/pam.d/sudo ]]; then
+	  read -p "Also add Howdy to sudo (/etc/pam.d/sudo)? [y/N]: " -n 1 -r; echo
+	  if [[ $REPLY =~ ^[Yy]$ ]]; then
+	    if grep -q 'pam_howdy\.so' /etc/pam.d/sudo; then
+	      echo "Howdy already present in /etc/pam.d/sudo; skipping."
+	    else
+	      just sudoif cp -a /etc/pam.d/sudo "/etc/pam.d/sudo.bak.{{ts}}"
+	      awk -v ins='{{HOWDY_LINE}}' 'BEGIN { print ins } { print }' /etc/pam.d/sudo > /tmp/sudo.new
+	      just sudoif install -m 0644 /tmp/sudo.new /etc/pam.d/sudo
+	      just sudoif restorecon -v /etc/pam.d/sudo || true
+	      just sudoif restorecon -v /etc/pam.d/sudo || true
+	      rm -f /tmp/sudo.new
+	      echo "Inserted Howdy into /etc/pam.d/sudo"
+	    fi
 	  fi
 	fi
 
@@ -92,7 +72,7 @@ pam-add howdy_in_sudo="0":
 	echo "Now lock your session or switch user to test the greeter BEFORE rebooting."
 
 # Restore most recent backups
-pam-revert:
+howdy-pam-revert:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	echo "Restoring most recent PAM backups (if any)..."
@@ -111,6 +91,8 @@ pam-revert:
 	  echo "No backup found for /etc/pam.d/sudo (that’s fine if you didn’t add it)"
 	fi
 	echo "Done. You may run: sudo systemctl restart gdm"
+
+# -------- Camera helpers --------
 
 # list candidate V4L devices (stable by-id paths)
 howdy-detect:
@@ -145,25 +127,3 @@ howdy-pick-ir:
 	echo "Setting Howdy device to $$path"; \
 	sudo sed -i "s|^#\\?\\s*device_path\\s*=.*|device_path = $$path|" /etc/howdy/config.ini; \
 	grep -E '^\\s*device_path' /etc/howdy/config.ini
-
-# quick verify
-howdy-verify:
-	@echo "Config:" && grep -E '^\s*device_path' /etc/howdy/config.ini || true; \
-	echo "Test (Ctrl+C to stop):"; sudo howdy test || true
-
-
-
-# -------- Smoke tests --------
-
-# Show where/how Howdy will be evaluated at greeter
-@pam-grep:
-	#!/usr/bin/env bash
-	echo "Auth lines in {{GDM_PAM}}:"
-	nl -ba "{{GDM_PAM}}" | sed -n '1,120p' | grep -En "auth|pam_selinux_permit|pam_howdy" || true
-
-# Quick “does the module exist and link?”
-@howdy-info:
-	#!/usr/bin/env bash
-	command -v howdy >/dev/null || { echo "howdy not in PATH"; exit 1; }
-	howdy --version || true
-	test -r /etc/howdy/config.ini && echo "/etc/howdy/config.ini present" || echo "Missing /etc/howdy/config.ini"
