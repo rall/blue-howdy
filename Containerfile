@@ -36,6 +36,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 RUN install -d -m 0755 /usr/share/ublue-os/just
 COPY Justfile /usr/share/ublue-os/just/blue-howdy.just
 RUN chmod 0644 /usr/share/ublue-os/just/blue-howdy.just
+RUN printf '\nimport "/usr/share/ublue-os/just/blue-howdy.just"\n' >> /usr/share/ublue-os/justfile
 
 RUN ostree container commit
 
