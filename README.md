@@ -37,41 +37,45 @@ If it fails, switch to a TTY (Ctrl+Alt+F3), log in with your password, and rever
 ### Set camera device
 
 ```bash
-ujust howdy-ir-candidates      # see likely IR nodes
-ujust howdy-pick-ir            # auto-pick and set device_path
-ujust howdy-verify             # confirm it works
+just howdy-detect              # list stable by-id camera paths
+just howdy-ir-candidates       # see likely IR nodes
+just howdy-pick-ir             # auto-pick and set device_path
 ```
 
 If your hardware presents IR and RGB as one multi-function node with mixed formats, the heuristic might need nudging. In that case, pick the right /dev/v4l/by-id/...-video-indexX manually from howdy-ir-candidates and set it with:
 
-`ujust set-howdy-device '/dev/v4l/by-id/<whatever>-video-index0'`
+`device_path = /dev/v4l/by-id/<whatever>-video-index0  # set this in /etc/howdy/config.ini`
 
 ---
 
 ## Justfile Tasks
 
-This repo includes a `Justfile` with safe helpers for PAM:
+This repo includes a `Justfile` with helpers to safely configure PAM and set Howdy’s camera:
 
-- Show status of PAM files:
+- Add Howdy to GDM (optional prompt to add to sudo as well):
 
-      ujust pam-status
+      just howdy-pam-add
 
-- Add Howdy to GDM only:
+- Revert PAM files to the most recent backups:
 
-      ujust pam-add
+      just howdy-pam-revert
 
-- Add Howdy to GDM + sudo:
+- List stable camera paths:
 
-      ujust pam-add howdy_in_sudo=1
+      just howdy-detect
 
-- Revert to most recent backups:
+- Show likely IR-capable video devices:
 
-      ujust pam-revert
+      just howdy-ir-candidates
 
-Every `pam-add` run makes a timestamped backup of the PAM file. If the greeter fails, you can revert quickly:
+- Auto-pick and set Howdy’s device_path:
+
+      just howdy-pick-ir
+
+Every `howdy-pam-add` run makes a timestamped backup of the PAM file(s). If the greeter fails, you can revert quickly:
 
     Ctrl+Alt+F3
-    just pam-revert
+    just howdy-pam-revert
     sudo systemctl restart gdm
 
 ---
@@ -119,5 +123,5 @@ Local build and switch with bootc:
       ls -Z /dev/video*
       restorecon -v /dev/video*
 
-- **Howdy prompts missing**: rerun `just pam-status` to confirm PAM lines are present.
+- **Howdy prompts missing**: run `just howdy-pam-add` to (re)insert PAM lines; it will no-op if they’re already present.
 
