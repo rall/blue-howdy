@@ -102,66 +102,92 @@ howdy-pam-revert:
     fi
     echo "Done. You may run: sudo systemctl restart gdm"
 
-# -------- Camera helpers --------
-
-# list candidate V4L devices (stable by-id paths)
-howdy-detect:
+@howdy-camera-picker:
     #!/usr/bin/env bash
     set -euo pipefail
-    ls -l /dev/v4l/by-id/ 2>/dev/null | awk '{print $9, "->", $11}' || echo "no /dev/v4l/by-id entries"
 
-# show devices which probably support IR
-howdy-ir-candidates:
-    #!/usr/bin/env bash
-    set -euo pipefail
+    pick_byid() {
+        local n="$1"
+        local link byid
+        link="$(readlink -f "$n" || true)"
+        byid="$(ls -l /dev/v4l/by-id/ 2>/dev/null | awk -v t="$link" '$NF==t{print "/dev/v4l/by-id/"$9; exit}')"
+        if [ -n "${byid:-}" ]; then printf '%s' "$byid"; else printf '%s' "$n"; fi
+    }
+
+    set_device() {
+        local path="$1"
+        sudo sed -i "s|^#\\?[[:space:]]*device_path[[:space:]]*=.*|device_path = ${path}|" /etc/howdy/config.ini
+        grep -E '^[[:space:]]*device_path' /etc/howdy/config.ini || true
+    }
+
+    echo "Trying each /dev/video* with howdy test (runs as root)"
+    kept_paths=()
     for n in /dev/video*; do
-        [ -e "$n" ] || { echo "no /dev/video* devices found"; break; }
-        prod="$(udevadm info -n $n | sed -n 's/^E: ID_V4L_PRODUCT=//p')";
-        fmts="$(v4l2-ctl -d $n --list-formats-ext 2>/dev/null \
-        | awk '/^\t\t\[/ {p=1} p {print}' \
-        | tr -s ' ' \
-        | cut -d: -f2- \
-        | tr '\n' ' ')";
-        ir_name=0;
-        mono_only=0;
-        printf "%s  product:\"%s\"  fmts: %s\n" "$n" "$prod" "$fmts";
-        printf "%s" "$prod" | grep -qiE "(^|[[:space:]])IR([[:space:]]|$)" && ir_name=1;
-        printf "%s" "$fmts" | grep -qiE "(^|[[:space:]])(GREY|Y8|Y10|Y12)([[:space:]]|$)" && mono_only=1;
-        if [ "$ir_name" -eq 1 ] || [ "$mono_only" -eq 1 ]; then
-            hint="";
-            [ "$ir_name" -eq 1 ] && hint="$hint[IR-name]";
-            [ "$mono_only" -eq 1 ] && hint="$hint[mono]";
-            echo "  -> CANDIDATE $n $hint";
-        fi;
-    done || true
+        [ -e "$n" ] || continue
+        PATH_TO_USE="$(pick_byid "$n")"
+        echo
+        echo "=== Testing $PATH_TO_USE ==="
+        set_device "$PATH_TO_USE"
 
-# autopick the first by-id path that looks like IR (name says IR or only mono formats)
-howdy-pick-ir:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    best="";
-    for n in /dev/video*; do
-        [ -e "$n" ] || { echo "no /dev/video* devices found"; break; }
-        prod="$(udevadm info -n "$n" | sed -n 's/^E: ID_V4L_PRODUCT=//p')";
-        fmts="$(v4l2-ctl -d "$n" --list-formats-ext 2>/dev/null \
-        | awk '/^\t\t\[/ {p=1} p {print}' \
-        | tr -s ' ' \
-        | cut -d: -f2- \
-        | tr '\n' ' ')";
-        if printf "%s" "$prod" | grep -qiE "(^|[[:space:]])IR([[:space:]]|$)"; then
-            best="$n";
-            break;
-        fi;
-        if printf "%s" "$fmts" | grep -qiE "(^|[[:space:]])(GREY|Y8|Y10|Y12)([[:space:]]|$)"; then
-            if ! printf "%s" "$fmts" | grep -qiE "(^|[[:space:]])(MJPG|YUYV|RGB)([[:space:]]|$)"; then
-                best="$n";
-            fi;
-        fi;
-    done;
-    test -n "$best" || { echo "No obvious IR device found"; exit 1; };
-    link="$(readlink -f "$best")";
-    byid="$(ls -l /dev/v4l/by-id/ 2>/dev/null | awk -v t="$link" '$NF==t{print "/dev/v4l/by-id/"$9; exit}')";
-    path="${byid:-$best}";
-    echo "Setting Howdy device to $path";
-    sudo sed -i "s|^#\\?\\s*device_path\\s*=.*|device_path = $path|" /etc/howdy/config.ini;
-    grep -E '^\\s*device_path' /etc/howdy/config.ini
+        if command -v timeout >/dev/null 2>&1; then
+            output="$(sudo timeout 5s howdy test 2>&1 || true)"
+        else
+            output="$(sudo howdy test 2>&1 || true)"
+        fi
+
+        # Skip outright failures
+        if echo "$output" | grep -q "Failed to read camera"; then
+            echo "Device $PATH_TO_USE not usable; skipping."
+            continue
+        fi
+
+        # Show preview/log output so the human can judge quality
+        echo "$output"
+        echo
+        read -r -p "Keep this candidate? [y/N/q] " ans
+        case "${ans:-n}" in
+            y|Y)
+                echo "Kept: ${PATH_TO_USE}"
+                kept_paths+=("${PATH_TO_USE}")
+                ;;
+            q|Q)
+                echo "Quit requested."
+                exit 2
+                ;;
+            *)
+                echo "Skipping ${PATH_TO_USE}"
+                ;;
+        esac
+    done
+
+    case "${#kept_paths[@]}" in
+        0)
+            echo "No IR device confirmed."
+            exit 1
+            ;;
+        1)
+            final="${kept_paths[0]}"
+            echo "Only one candidate: $final"
+            set_device "$final"
+            exit 0
+            ;;
+        *)
+            echo
+            echo "Select from kept candidates:"
+            i=0
+            for p in "${kept_paths[@]}"; do
+                printf "  [%d] %s\n" "$i" "$p"
+                i=$((i+1))
+            done
+            read -r -p "Enter number to set as final device: " idx
+            if [[ "$idx" =~ ^[0-9]+$ ]] && [ "$idx" -ge 0 ] && [ "$idx" -lt "${#kept_paths[@]}" ]; then
+                final="${kept_paths[$idx]}"
+                echo "Final choice: $final"
+                set_device "$final"
+                exit 0
+            else
+                echo "Invalid selection."
+                exit 3
+            fi
+            ;;
+    esac
