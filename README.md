@@ -50,9 +50,11 @@ If your hardware presents IR and RGB as one multi-function node with mixed forma
 
 ## Justfile Tasks
 
-This repo includes a `Justfile` with helpers to safely configure PAM and set Howdy’s camera:
+This repo ships a `Justfile` with safe helpers for configuring PAM, selecting the Howdy camera, and repairing SELinux policy.
 
-- Add Howdy to GDM (optional prompt to add to sudo as well):
+### PAM helpers
+
+- Add Howdy to GDM and / or sudo:
 
       just howdy-pam-add
 
@@ -60,23 +62,37 @@ This repo includes a `Justfile` with helpers to safely configure PAM and set How
 
       just howdy-pam-revert
 
-- List stable camera paths:
-
-      just howdy-detect
-
-- Show likely IR-capable video devices:
-
-      just howdy-ir-candidates
-
-- Auto-pick and set Howdy’s device_path:
-
-      just howdy-pick-ir
-
-Every `howdy-pam-add` run makes a timestamped backup of the PAM file(s). If the greeter fails, you can revert quickly:
+Every `howdy-pam-add` run makes timestamped backups of the PAM file(s). If the greeter fails:
 
     Ctrl+Alt+F3
     just howdy-pam-revert
     sudo systemctl restart gdm
+
+**<span style="color:red">To avoid potential lock-out, make sure you verify the changes made to your pam.d config before rebooting</span>**
+
+### Camera helpers
+
+- Interactively test each `/dev/video*` with `howdy test` and pick the right one:
+
+      just howdy-camera-picker
+
+The task will run `sudo howdy test` against each camera node, skip devices that fail, let you keep one or more, and auto-select if only one works.
+
+### SELinux repair
+
+If the SELinux module store gets corrupted (e.g. AVCs show `{ map }` denials for `/dev/video*`), repair and reinstall the Howdy policy in two steps:
+
+1. Mark for a full relabel and reboot:
+
+      just howdy-selinux-repair-start
+      sudo reboot
+
+2. After reboot, finish the repair and reinstall the Howdy policy:
+
+      just selinux-repair-finish
+
+This will relabel the SELinux store, rebuild modules, reinstall the `howdy_gdm` policy from the image, and verify it is loaded. It also checks that the `gdm` user is in the `video` group.
+
 
 ---
 
@@ -110,18 +126,6 @@ Local build and switch with bootc:
 
 ## Troubleshooting
 
-- **Policy install fails** (`semodule: policy store corrupt`):
-
-      sudo systemctl start selinux-autorelabel-mark.service || sudo touch /sysroot/.autorelabel
-      sudo reboot
-      sudo restorecon -RFv /etc/selinux /var/lib/selinux
-      sudo semodule -B
-
-- **Camera blocked at greeter**:  
-  Ensure `/dev/video*` is labeled `video_device_t`:
-
-      ls -Z /dev/video*
-      restorecon -v /dev/video*
+- **Howdy works for sudo but not GDM login**: it's possible your SELinux policy module store is corrupted. See **SELinux repair,** above
 
 - **Howdy prompts missing**: run `just howdy-pam-add` to (re)insert PAM lines; it will no-op if they’re already present.
-

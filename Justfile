@@ -191,3 +191,43 @@ howdy-pam-revert:
             fi
             ;;
     esac
+
+# ---------- SELinux repair & reinstall ----------
+
+@howdy-selinux-repair-start:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Marking system for full SELinux relabel on next boot..."
+    if systemctl start selinux-autorelabel-mark.service 2>/dev/null; then
+        echo "Queued relabel via selinux-autorelabel-mark.service"
+    else
+        sudo touch /.autorelabel
+        echo "Created /.autorelabel"
+    fi
+    echo
+    echo "Now reboot. After reboot, run:  ujust howdy-selinux-repair-finish"
+
+@howdy-selinux-repair-finish:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    echo "[1/4] Relabel SELinux DB paths (post-reboot hygiene)"
+    sudo restorecon -RFv /etc/selinux /var/lib/selinux || true
+
+    echo "[2/4] Rebuild policy module store"
+    sudo semodule -B
+
+    echo "[3/4] Reinstall Howdy policy from image source"
+    src="/usr/share/selinux/howdy/howdy_gdm.te"
+    [ -r "$src" ] || { echo "Missing $src"; exit 1; }
+    howdy-selinux="/var/lib/howdy-selinux"
+    sudo install -d -m 0755 "$howdy-selinux"
+    sudo checkmodule -M -m -o "$howdy-selinux/howdy_gdm.mod" "$src"
+    sudo semodule_package -o "$howdy-selinux/howdy_gdm.pp" -m "$howdy-selinux/howdy_gdm.mod"
+    sudo semodule -i "$howdy-selinux/howdy_gdm.pp"
+
+    echo "[4/4] Verify module and basic access"
+    sudo semodule -l | grep -qi howdy_gdm || { echo "howdy_gdm still missing"; exit 1; }
+    id gdm | grep -q 'video' || { echo "Adding gdm to video group"; sudo gpasswd -a gdm video; sudo systemctl restart gdm; }
+    ls -Z /dev/video* | sed -n '1,10p' || true
+    echo "Done. Try: sudo -u gdm howdy test"
