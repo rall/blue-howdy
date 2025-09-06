@@ -10,7 +10,10 @@ class Container
 
   def start_container!
     e = engine or raise "No container engine (need podman or docker)"
-    @container_id = `#{e} run -d #{@image_name}`.strip
+    require 'open3'
+    stdout, stderr, status = Open3.capture3("#{e} run -d #{@image_name}")
+    raise "Failed to start container: #{stderr}" unless status.success?
+    @container_id = stdout.strip
     raise "Failed to start container" if @container_id.empty?
   end
 
