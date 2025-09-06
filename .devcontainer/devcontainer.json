@@ -18,7 +18,7 @@
 	},
     "customizations": {
         "vscode": {
-            "extensions": [ "mattflower.aider", "cucumberopen.cucumber-official" ]
+            "extensions": [ "mattflower.aider", "cucumberopen.cucumber-official", "shopify.ruby-extensions-pack"]
         }
     }
 	// // Use 'forwardPorts' to make a list of ports inside the container available locally.
