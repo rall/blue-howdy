@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-module Container
-  module_function
+class Container
 
+  
   def engine
     return :podman if system("which podman >/dev/null 2>&1")
     return :docker if system("which docker >/dev/null 2>&1")
