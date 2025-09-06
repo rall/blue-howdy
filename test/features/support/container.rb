@@ -1,0 +1,30 @@
+# frozen_string_literal: true
+
+module Container
+  module_function
+
+  def engine
+    return :podman if system("which podman >/dev/null 2>&1")
+    return :docker if system("which docker >/dev/null 2>&1")
+    nil
+  end
+
+  def sh!(cmd)
+    ok = system(cmd)
+    ok or raise "Command failed: #{cmd}"
+  end
+
+  def build_mock!(base_tag:, mock_mode: :success, tag:)
+    e = engine or raise "No container engine (need podman or docker)"
+    sh!(%Q{#{e} build -f Dockerfile.mock --build-arg BASE_IMAGE=#{base_tag} --build-arg MOCK_MODE=#{mock_mode} -t #{tag} .})
+    tag
+  end
+
+  # cleanup helper: delete images we built for tests
+  def cleanup!(tags)
+    e = engine or return
+    Array(tags).each do |tag|
+      sh!(%Q{#{e} image rm -f #{tag}}) rescue warn "Failed to remove #{tag}"
+    end
+  end
+end
