@@ -1,6 +1,23 @@
 # frozen_string_literal: true
 
 class Container
+  attr_reader :container_id
+
+  def initialize(image_name)
+    @image_name = image_name
+    @container_id = nil
+  end
+
+  def start_container!
+    e = engine or raise "No container engine (need podman or docker)"
+    @container_id = `#{e} run -d #{@image_name}`.strip
+    raise "Failed to start container" if @container_id.empty?
+  end
+
+  def exec!(cmd)
+    e = engine or raise "No container engine (need podman or docker)"
+    sh!(%Q{#{e} exec #{@container_id} #{cmd}})
+  end
 
   
   def engine
