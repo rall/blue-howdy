@@ -17,11 +17,11 @@ class Container
     raise "Failed to start container" if @container_id.empty?
   end
 
+  private
   def exec!(cmd)
     e = engine or raise "No container engine (need podman or docker)"
     sh!(%Q{#{e} exec #{@container_id} #{cmd}})
   end
-
   
   def engine
     return :podman if system("which podman >/dev/null 2>&1")

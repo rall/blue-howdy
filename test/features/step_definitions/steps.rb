@@ -1,6 +1,10 @@
+require_relative "../support/container"
+
 Given('I am logged in to a fresh blue-howdy image') do
-  # Implement the logic to log in to a fresh blue-howdy image
-  # This could involve starting a container or setting up a test environment
+  attach("IMAGE=#{image_name}", "text/plain")
+
+  @container = Container.new(image_name)
+  @container.start_container!
 end
 
 Given(/I run `ujust howdy-pam-add` (to|but don't) add howdy to the (GDM|SDDM) login/) do |act, window_manager|

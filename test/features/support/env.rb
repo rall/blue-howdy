@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
-def build_image_name(base, stream)
+def image_name()
+  base   = ENV["MATRIX_BASE"]
+  stream = ENV["MATRIX_STREAM"]
   if base && stream
     "ghcr.io/rall/#{base}-howdy:#{stream}" 
   else
@@ -9,16 +11,10 @@ def build_image_name(base, stream)
 end
 
 BeforeAll do 
-  base   = ENV["MATRIX_BASE"]
-  stream = ENV["MATRIX_STREAM"]
-  @image = ENV["IMAGE"] || build_image_name(base, stream)
-  attach("IMAGE=#{@image}", "text/plain")
 end
 
 Before do |scenario|
-  unless scenario.source_tag_names.any? { |tag| @image.include?(tag.slice(0)) }
-    skip_this_scenario
-  end
+  scenario.attach("IMAGE=#{image_name}", "text/plain")
 end
 
 AfterAll do
