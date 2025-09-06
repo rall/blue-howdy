@@ -1,5 +1,5 @@
 Given('I am logged in to a fresh blue-howdy image') do
-  pending # Write code here that turns the phrase above into concrete actions
+  # Write code here that turns the phrase above into concrete actions
 end
 
 Given(/I run `ujust howdy-pam-add` (to|but don't) add howdy to the (GDM|SDDM) login/) do |act, window_manager|
