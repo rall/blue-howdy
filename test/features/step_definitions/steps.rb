@@ -1,5 +1,6 @@
 Given('I am logged in to a fresh blue-howdy image') do
-  # Write code here that turns the phrase above into concrete actions
+  # Implement the logic to log in to a fresh blue-howdy image
+  # This could involve starting a container or setting up a test environment
 end
 
 Given(/I run `ujust howdy-pam-add` (to|but don't) add howdy to the (GDM|SDDM) login/) do |act, window_manager|
