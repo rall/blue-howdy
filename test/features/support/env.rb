@@ -1,25 +1,26 @@
 # frozen_string_literal: true
 
-require_relative "matrix"
-
-VARIANT = begin
-  img = ENV["BASE_IMAGE"] || ENV["IMAGE_NAME"] || ENV["VARIANT"]
-  if img
-    base = img.split("/").last.split(":").first.sub(/-howdy$/, "")
-    { base: base.to_sym }
+def build_image_name(base, stream)
+  if base && stream
+    "ghcr.io/rall/#{base}-howdy:#{stream}" 
+  else
+    raise "unknown image"
   end
+end
+
+BeforeAll do 
+  base   = ENV["MATRIX_BASE"]
+  stream = ENV["MATRIX_STREAM"]
+  @image = ENV["IMAGE"] || build_image_name(base, stream)
+  attach("IMAGE=#{@image}", "text/plain")
 end
 
 Before do |scenario|
-  if scenario.source_tag_names.include?("@gnome") &&
-     !(VARIANT && has?(VARIANT, :gdm))
-    skip_this_scenario("Skipping @gnome scenario for image without GNOME")
+  unless scenario.source_tag_names.any? { |tag| @image.include?(tag.slice(0)) }
+    skip_this_scenario
   end
 end
 
-After do
-  if @mock_tag
-    Container.cleanup!(@mock_tag)
-  end
+AfterAll do
+  # stop container, remove image
 end
-
