@@ -6,9 +6,22 @@ class Container
   def initialize(image_name)
     @image_name = image_name
     @container_id = nil
+    @built_image = nil
+  end
+
+  def initialize(image_name)
+    @image_name = image_name
+    @container_id = nil
+  end
+
+  def build_image!
+    e = engine or raise "No container engine (need podman or docker)"
+    @built_image = "custom-#{@image_name}"
+    sh!(%Q{#{e} build -f features/Dockerfile --build-arg BASE_IMAGE=#{@image_name} -t #{@built_image} .})
   end
 
   def start_container!
+    build_image!
     e = engine or raise "No container engine (need podman or docker)"
     require 'open3'
     stdout, stderr, status = Open3.capture3("#{e} run -d #{@image_name}")
@@ -57,7 +70,10 @@ class Container
   end
 
   # cleanup helper: delete images we built for tests
-  def cleanup!(tags)
+  def cleanup!
+    e = engine or return
+    sh!(%Q{#{e} image rm -f #{@built_image}}) rescue warn "Failed to remove #{@built_image}"
+  end
     e = engine or return
     Array(tags).each do |tag|
       sh!(%Q{#{e} image rm -f #{tag}}) rescue warn "Failed to remove #{tag}"
