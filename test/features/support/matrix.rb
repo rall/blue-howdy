@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 require "yaml"
 
-wf = YAML.load_file(File.expand_path("../../.github/workflows/build.yml", __dir__))
+wf = YAML.load_file(File.join(__dir__, "../../../", ".github/workflows/build.yml"))
 matrix = wf.dig("jobs", "build_push", "strategy", "matrix")
 bases = matrix.fetch("base")
 streams = matrix.fetch("stream")
