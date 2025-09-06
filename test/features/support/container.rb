@@ -17,6 +17,13 @@ class Container
     raise "Failed to start container" if @container_id.empty?
   end
 
+  def run(command)
+    e = engine or raise "No container engine (need podman or docker)"
+    stdout, stderr, status = Open3.capture3("#{e} exec #{@container_id} #{command}")
+    raise "Command failed: #{stderr}" unless status.success?
+    stdout.strip
+  end
+
   private
   def exec!(cmd)
     e = engine or raise "No container engine (need podman or docker)"
