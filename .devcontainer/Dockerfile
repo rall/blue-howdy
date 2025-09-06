@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/base:bullseye
+FROM mcr.microsoft.com/devcontainers/ruby:bullseye
 RUN sudo apt-get update && sudo apt-get install -y policycoreutils selinux-basics checkpolicy selinux-policy-dev auditd
 USER vscode
 RUN mkdir -p ~/bin
