@@ -60,6 +60,20 @@ Then(/I should (be|not be) able to log in with the (GDM|SDDM) greeter and howdy/
 end
 
 Then(/I should (not be|be) able to authenticate with sudo using howdy/) do |act|
-  # Implement the logic to verify sudo authentication using howdy
-  # This could involve simulating a sudo command and checking the result
+  @container.run(%q{sudo -K})  # Clear the sudo cache
+
+  rc = @container.run(%q{
+    sudo -u testuser sh -c '
+      printf "#!/bin/sh\necho testuser\n" > /tmp/ask.sh
+      chmod 700 /tmp/ask.sh
+      SUDO_ASKPASS=/tmp/ask.sh sudo -A -v
+      sudo -n true
+    '
+  })
+
+  if act == "not be"
+    raise "expected sudo authentication via howdy to fail, rc=#{rc}" unless rc != "0"
+  else
+    raise "expected sudo authentication via howdy to succeed, rc=#{rc}" unless rc == "0"
+  end
 end
