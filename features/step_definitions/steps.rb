@@ -64,10 +64,8 @@ Then(/I should (not be|be) able to authenticate with sudo using howdy/) do |act|
 
   rc = @container.run(%q{
     sudo -u testuser sh -c '
-      printf "#!/bin/sh\necho testuser\n" > /tmp/ask.sh
-      chmod 700 /tmp/ask.sh
-      SUDO_ASKPASS=/tmp/ask.sh sudo -A -v
-      sudo -n true
+      sudo -K
+      sudo ls /root >/dev/null 2>&1
     '
   })
 
