@@ -60,8 +60,6 @@ Then(/I should (be|not be) able to log in with the (GDM|SDDM) greeter and howdy/
 end
 
 Then(/I should (not be|be) able to authenticate with sudo using howdy/) do |act|
-  @container.run(%q{sudo -K})  # Clear the sudo cache
-
   rc = @container.run(%q{
     sudo -u testuser sh -c '
       sudo -K
