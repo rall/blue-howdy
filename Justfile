@@ -22,84 +22,115 @@ GDM_PAM := "/etc/pam.d/gdm-password"
 SDDM_PAM := "/etc/pam.d/sddm"
 HOWDY_LINE := "auth sufficient pam_howdy.so"
 
-# Add Howdy to GDM and/or sudo; interactive, idempotent, with backups
+# Add Howdy to GDM, SDDM and/or sudo; interactive, idempotent, with backups
 howdy-pam-add:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    has_gdm=0
-    has_sddm=0
-    [[ -f "{{GDM_PAM}}" ]] && has_gdm=1
-    [[ -f "{{SDDM_PAM}}" ]] && has_sddm=1
-    if [[ $has_gdm -eq 0 && $has_sddm -eq 0 ]]; then
-        echo "Note: neither {{GDM_PAM}} nor {{SDDM_PAM}} found; skipping greeter integration."
-        exit 0
-    fi
-    echo "!!! WARNING !!!"
-    echo "This modifies PAM. TEST LOGIN AT THE GREETER BEFORE REBOOTING."
-    echo "If the greeter fails: Ctrl+Alt+F3 -> login -> 'ujust howdy-pam-revert' -> 'sudo systemctl restart gdm or sddm'"
-    insert_pam() {
-        local pam_file="$1"; shift
-        local label="$1"; shift
-        read -p "Add Howdy to ${label} login (${pam_file})? [y/N]: " -n 1 -r; echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            if grep -q 'pam_howdy\.so' "${pam_file}"; then
-                echo "Howdy already present in ${pam_file}; skipping."
-            else
-                just sudoif cp -a "${pam_file}" "${pam_file}.bak.{{ts}}"
-                local tmpfile
-                tmpfile="$(mktemp)"
-                if grep -q 'pam_selinux_permit\.so' "${pam_file}"; then
-                    awk -v ins='{{HOWDY_LINE}}' '
-                    { print }
-                    $0 ~ /pam_selinux_permit\.so/ { print ins }
-                    ' "${pam_file}" > "${tmpfile}"
-                else
-                    awk -v ins='{{HOWDY_LINE}}' '
-                    NR==1 && $0 ~ /^#%PAM-1\.0/ { print; print ins; next }
-                    { print }
-                    ' "${pam_file}" > "${tmpfile}"
-                fi
-                if [ -f "${pam_file}" ]; then
-                    just sudoif install -m 0644 "${tmpfile}" "${pam_file}"
-                    just sudoif restorecon -v "${pam_file}" || true
-                    rm -f "${tmpfile}"
-                    echo "Inserted Howdy into ${pam_file}"
-                else
-                    echo "Note: ${pam_file} not found; skipping ${label} integration on this system."
-                fi
-            fi
-        fi
-    }
-    if [[ $has_gdm -eq 1 ]]; then
-        insert_pam "{{GDM_PAM}}" "GDM"
-    fi
-    if [[ $has_sddm -eq 1 ]]; then
-        insert_pam "{{SDDM_PAM}}" "SDDM"
-    fi
+	#!/usr/bin/env bash
+	set -euo pipefail
 
-    # --- sudo (interactive, no-op if already present) ---
-    if [[ -f /etc/pam.d/sudo ]]; then
-        read -p "Also add Howdy to sudo (/etc/pam.d/sudo)? [y/N]: " -n 1 -r;
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            if grep -q 'pam_howdy\.so' /etc/pam.d/sudo; then
-                echo "Howdy already present in /etc/pam.d/sudo; skipping."
-            else
-                just sudoif cp -a /etc/pam.d/sudo "/etc/pam.d/sudo.bak.{{ts}}"
-                awk -v ins='{{HOWDY_LINE}}' '
-                NR==1 && $0 ~ /^#%PAM-1\.0/ { print; print ins; next }
-                { print }
-                ' /etc/pam.d/sudo > /tmp/sudo.new
-                just sudoif install -m 0644 /tmp/sudo.new /etc/pam.d/sudo
-                just sudoif restorecon -v /etc/pam.d/sudo || true
-                rm -f /tmp/sudo.new
-                echo "Inserted Howdy into /etc/pam.d/sudo"
-            fi
-        fi
-    fi
+	# Defaults so the mustache-y placeholders don't leak into runtime
+	GDM_PAM="${GDM_PAM:-/etc/pam.d/gdm-password}"
+	SDDM_PAM="${SDDM_PAM:-/etc/pam.d/sddm}"
+	HOWDY_LINE="${HOWDY_LINE:-auth sufficient pam_howdy.so}"
 
-    echo
-    echo "Now lock your session or switch user to test the greeter BEFORE rebooting."
+	# Non-interactive controls for CI:
+	#   HOWDY_PAM_YES=1 -> skip "Proceed?" and treat targets via *_GDM/SDDM/SUDO
+	#   HOWDY_PAM_GDM=1|0, HOWDY_PAM_SDDM=1|0, HOWDY_PAM_SUDO=1|0
+	HOWDY_PAM_YES="${HOWDY_PAM_YES:-0}"
+	HOWDY_PAM_GDM="${HOWDY_PAM_GDM:-0}"
+	HOWDY_PAM_SDDM="${HOWDY_PAM_SDDM:-0}"
+	HOWDY_PAM_SUDO="${HOWDY_PAM_SUDO:-0}"
+
+	has_gdm=0;   [[ -f "$GDM_PAM"  ]] && has_gdm=1
+	has_sddm=0;  [[ -f "$SDDM_PAM" ]] && has_sddm=1
+
+	if [[ $has_gdm -eq 0 && $has_sddm -eq 0 ]]; then
+	  echo "Note: neither $GDM_PAM nor $SDDM_PAM found; skipping greeter integration."
+	fi
+
+	echo "!!! WARNING !!!"
+	echo "This modifies PAM. TEST LOGIN AT THE GREETER BEFORE REBOOTING."
+	echo "If the greeter fails: Ctrl+Alt+F3 -> login -> 'ujust howdy-pam-revert' -> restart gdm/sddm"
+
+	prompt_yn() {
+	  local prompt="$1"
+	  if [[ "$HOWDY_PAM_YES" == "1" ]]; then
+	    # CI mode: the caller will set *_GDM/SDDM/SUDO to decide per-target
+	    echo "$prompt [auto]" 1>&2
+	    REPLY="y"
+	    return 0
+	  fi
+	  if [[ -t 0 ]]; then
+	    read -p "$prompt" -n 1 -r; echo
+	  else
+	    # no TTY: read from stdin (so printf pipeline works)
+	    printf "%s" "$prompt" 1>&2
+	    IFS= read -r REPLY || REPLY=""
+	    [[ -n "$REPLY" ]] && REPLY="${REPLY:0:1}"
+	    echo 1>&2
+	  fi
+	}
+
+	insert_pam() {
+	  local pam_file="$1"
+	  local label="$2"
+	  local want="${3:-ask}"
+
+	  if [[ "$want" == "ask" ]]; then
+	    prompt_yn "Add Howdy to login (${label}: ${pam_file})? [y/N]: "
+	    [[ ! "$REPLY" =~ ^[Yy]$ ]] && return 0
+	  elif [[ "$want" == "no" ]]; then
+	    return 0
+	  fi
+
+	  if grep -q 'pam_howdy\.so' "$pam_file"; then
+	    echo "Howdy already present in $pam_file; skipping."
+	    return 0
+	  fi
+
+	  just sudoif cp -a "$pam_file" "$pam_file.bak.$(date +%s)"
+	  tmpfile="$(mktemp)"
+	  if grep -q 'pam_selinux_permit\.so' "$pam_file"; then
+	    awk -v ins="$HOWDY_LINE" '{ print } $0 ~ /pam_selinux_permit\.so/ { print ins }' "$pam_file" > "$tmpfile"
+	  else
+	    awk -v ins="$HOWDY_LINE" 'NR==1 && $0 ~ /^#%PAM-1\.0/ { print; print ins; next } { print }' "$pam_file" > "$tmpfile"
+	  fi
+	  just sudoif install -m 0644 "$tmpfile" "$pam_file"
+	  just sudoif restorecon -v "$pam_file" || true
+	  rm -f "$tmpfile"
+	  echo "Inserted Howdy into $pam_file"
+	}
+
+	# Greeters
+	if [[ $has_gdm -eq 1 ]];  then
+	  choice="ask"; [[ "$HOWDY_PAM_YES" == "1" ]] && choice=$([[ "$HOWDY_PAM_GDM" == "1" ]] && echo yes || echo no)
+	  insert_pam "$GDM_PAM" "GDM" "$choice"
+	fi
+
+	if [[ $has_sddm -eq 1 ]]; then
+	  choice="ask"; [[ "$HOWDY_PAM_YES" == "1" ]] && choice=$([[ "$HOWDY_PAM_SDDM" == "1" ]] && echo yes || echo no)
+	  insert_pam "$SDDM_PAM" "SDDM" "$choice"
+	fi
+
+	# sudo
+	if [[ -f /etc/pam.d/sudo ]]; then
+	  if [[ "$HOWDY_PAM_YES" == "1" ]]; then
+	    choice=$([[ "$HOWDY_PAM_SUDO" == "1" ]] && echo yes || echo no)
+	  else
+	    prompt_yn "Also add Howdy to sudo (/etc/pam.d/sudo)? [y/N]: "
+	    choice=$([[ "$REPLY" =~ ^[Yy]$ ]] && echo yes || echo no)
+	  fi
+	  if [[ "$choice" == "yes" && ! $(grep -q 'pam_howdy\.so' /etc/pam.d/sudo; echo $?) -eq 0 ]]; then
+	    just sudoif cp -a /etc/pam.d/sudo "/etc/pam.d/sudo.bak.$(date +%s)"
+	    awk -v ins="$HOWDY_LINE" 'NR==1 && $0 ~ /^#%PAM-1\.0/ { print; print ins; next } { print }' /etc/pam.d/sudo > /tmp/sudo.new
+	    just sudoif install -m 0644 /tmp/sudo.new /etc/pam.d/sudo
+	    just sudoif restorecon -v /etc/pam.d/sudo || true
+	    rm -f /tmp/sudo.new
+	    echo "Inserted Howdy into /etc/pam.d/sudo"
+	  fi
+	fi
+
+	echo
+	echo "Now lock your session or switch user to test the greeter BEFORE rebooting."
 
 # Restore most recent backups
 howdy-pam-revert:
