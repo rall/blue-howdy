@@ -14,9 +14,16 @@ BeforeAll do
 end
 
 Before do |scenario|
-  scenario.attach("IMAGE=#{image_name}", "text/plain")
+  puts scenario.inspect
+  # scenario.attach("IMAGE=#{image_name}", "text/plain")
 end
 
 AfterAll do
   # stop container, remove image
+end
+
+After do |scenario|
+  if @container
+    @container.cleanup!
+  end
 end
