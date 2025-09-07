@@ -1,21 +1,16 @@
 # frozen_string_literal: true
 
-def image_name()
-  base   = ENV["MATRIX_BASE"]
-  stream = ENV["MATRIX_STREAM"]
-  if base && stream
-    "ghcr.io/rall/#{base}-howdy:#{stream}" 
-  else
-    raise "unknown image"
-  end
-end
-
-BeforeAll do 
+BeforeAll do
 end
 
 Before do |scenario|
-  puts scenario.inspect
-  # scenario.attach("IMAGE=#{image_name}", "text/plain")
+  attach("BASE_IMAGE=#{ENV['MATRIX_BASE']}", "text/plain")
+  attach("STEREAM=#{ENV['MATRIX_STREAM']}", "text/plain")
+  puts image_name
+  unless base_image
+    @base_image = Image.new("test_image", base: image_name)
+    base_image.build!("Containerfile")
+  end
 end
 
 AfterAll do

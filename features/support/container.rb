@@ -1,37 +1,74 @@
 # frozen_string_literal: true
-require 'open3'
+require "open3"
 
-class Container
-  attr_reader :container_id
-
-  def initialize(image_name)
-    @image_name = image_name
-    @built_image = "#{@image_name}-test"
-    @container_id = nil
+class Runtime
+  def cleanup!
+    raise "Not implemented"
   end
 
-  def build_image!
-    pid = spawn(%Q{#{engine} build --quiet --file features/support/Dockerfile --build-arg BASE_IMAGE=#{@image_name} --tag #{@built_image} .}, out: File::NULL, err: File::NULL)
+  protected
+
+  def engine
+    return "podman" if system("command -v podman >/dev/null 2>&1")
+    return "docker" if system("command -v docker >/dev/null 2>&1")
+    raise "No container engine (need podman or docker)"
+  end
+end
+
+class Image < Runtime
+  attr_reader :tag
+
+  # Initialize with the base image string to pass to the overlay build,
+  # or nil if the Dockerfile doesn't require BASE_IMAGE.
+  def initialize(tag, base: nil)
+    @base = base
+    @tag  = tag
+  end
+
+  # Build exactly the Dockerfile given. If @base is set, pass it as BASE_IMAGE.
+  # Tags the result with a unique, local name and returns a Container bound to it.
+  def build!(dockerfile)
+    args = ["--file", dockerfile, "--build-arg", "BASE_IMAGE=#{@base}", "--tag", @tag]
+    pid = spawn(engine, "build", *args, ".", out: File::NULL)
     Process.wait(pid)
-    raise "build failed" unless $?.success?
+    raise "build failed (#{dockerfile})" unless $?.success?
+    Container.new(self)
   end
 
-  def start_container!
-    stdout, stderr, status = Open3.capture3(engine.to_s, "run", "-d", @built_image, "tail", "-f", "/dev/null")
+  def cleanup!
+    system(engine, "image", "rm", "-f", @tag)
+  end
+end
+
+class Container < Runtime
+  attr_reader :id
+
+  def initialize(image)
+    @image = image
+    @id    = nil
+  end
+
+  # Start a long-lived container from the image's tag.
+  def start!
+    stdout, stderr, status =
+      Open3.capture3(engine, "run", "-d",
+                     "--entrypoint", "tail", @image.tag,
+                     "-f", "/dev/null")
     raise "Failed to start container: #{stderr}" unless status.success?
-    @container_id = stdout.strip
-    raise "Failed to start container (empty id)" if @container_id.empty?
+    @id = stdout.strip
+    raise "Failed to start container (empty id)" if @id.empty?
   end
 
-  def run(command)
-    stdout, stderr, status = Open3.capture3(engine.to_s, "exec", "-i", @container_id, "bash", "-c", command)
+  def run(cmd)
+    stdout, stderr, status =
+      Open3.capture3(engine, "exec", "-i", @id, "bash", "-c", cmd)
     raise "Command failed: #{stderr}" unless status.success?
     stdout.strip
   end
 
-  def popen(command)
-    raise "Container not started" unless @container_id
-    Open3.popen2e(engine.to_s, "exec", "-i", @container_id, "bash", "-c", command) do |stdin, io, wait|
+  def popen(cmd)
+    raise "Container not started" unless @id
+    Open3.popen2e(engine, "exec", "-i", @id, "bash", "-c", cmd) do |stdin, io, wait|
       stdin.sync = true
       yield stdin, io if block_given?
       stdin.close
@@ -42,23 +79,8 @@ class Container
   end
 
   def cleanup!
-    system(%Q{#{engine} image rm -f #{@built_image}}) rescue warn "Failed to remove #{@built_image}"
+    system(engine, "stop", @id)
+    system(engine, "rm", "-f", @id)
+    @image.cleanup!
   end
-
-  private
-  def exec!(cmd)
-    system(%Q{#{engine} exec #{@container_id} #{cmd}})
-  end
-
-  def engine
-    return :podman if system("which podman >/dev/null 2>&1")
-    return :docker if system("which docker >/dev/null 2>&1")
-    raise "No container engine (need podman or docker)"
-  end
-
-  def build_mock!(base_tag:, mock_mode: :success, tag:)
-    system(%Q{#{engine} build -f Dockerfile.mock --build-arg BASE_IMAGE=#{base_tag} --build-arg MOCK_MODE=#{mock_mode} -t #{tag} .})
-    tag
-  end
-
 end
