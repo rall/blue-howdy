@@ -26,7 +26,7 @@ sudo bootc switch ghcr.io/rall/bluefin-dx-nvidia-open-howdy:gts
 ```
 Other variants exist (`bluefin-howdy`, `bluefin-dx-howdy`, `bluefin-nvidia-howdy`) with `gts` or `latest` tags.
 
-2. Configure PAM (adds Howdy to GDM, optional prompt for sudo):
+2. Configure PAM (adds Howdy to GDM or SDDM, optional prompt for sudo):
 
 ```
 ujust howdy-pam-add
@@ -37,7 +37,7 @@ If the greeter fails after changes:
 ```
 Ctrl+Alt+F3
 ujust howdy-pam-revert
-sudo systemctl restart gdm
+sudo systemctl restart gdm or sddm
 ```
 
 3. Pick the right camera interactively:
@@ -48,7 +48,7 @@ ujust howdy-camera-picker
 
 4. Lock the screen or switch user to test face login at the greeter.
 
-5. If GDM login works with `sudo howdy test` but fails at the greeter, repair SELinux:
+5. If login works with `sudo howdy test` but fails at the greeter, repair SELinux:
 
 ```
 ujust howdy-selinux-repair-start
@@ -69,7 +69,7 @@ This repo adds Justfile tasks for configuring PAM, selecting the Howdy camera, a
 
 ### PAM helpers
 
-- Add Howdy to GDM and / or sudo:
+- Add Howdy to the login greeter (GDM or SDDM) and / or sudo:
 
 ```
 ujust howdy-pam-add
@@ -86,7 +86,7 @@ Every `howdy-pam-add` run makes timestamped backups of the PAM file(s). If the g
 ```
 Ctrl+Alt+F3
 ujust howdy-pam-revert
-sudo systemctl restart gdm
+sudo systemctl restart gdm or sddm
 ```
 
 **<span style="color:red">To avoid potential lock-out, make sure you verify the changes made to your pam.d config before rebooting</span>**
@@ -145,7 +145,7 @@ sudo bootc switch localhost/blue-howdy:gts
 
 ## Troubleshooting
 
-- **Howdy works for sudo but not GDM login**: it's possible your SELinux policy module store is corrupted. See **SELinux repair,** above
+- **Howdy works for sudo but not at the greeter**: it's possible your SELinux policy module store is corrupted. See **SELinux repair,** above
 
 - **Howdy prompts missing**: run `just howdy-pam-add` to (re)insert PAM lines; it will no-op if they’re already present.
 
