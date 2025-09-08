@@ -1,3 +1,4 @@
+require "aruba/cucumber"
 require_relative "../support/container"
 
 Given('I am logged in to a fresh blue-howdy image') do
@@ -8,26 +9,29 @@ end
 
 Given(/I run `ujust howdy-pam-add` (to|but don't) add howdy to (login|sudo)/) do |act, pam|
   next if act == "but don't"
-  container.popen("stdbuf -oL -eL ujust howdy-pam-add") do |stdin, io|
-    io.each_line do |line|
-      puts line
-      case line
-      when /Add Howdy to login/i
-        stdin.puts(pam == "login" ? "y" : "n")
-      when /Also add Howdy to sudo/i
-        stdin.puts(pam == "sudo" ? "y" : "n")
-      when /Proceed\?/i
-        stdin.puts "y"
-      else
-        stdin.puts("")
+
+  answers = {
+    proceed: "y",
+    login: (pam == "login" ? "y" : "n"),
+    sudo: (pam == "sudo"  ? "y" : "n")
+  }
+
+  run_command(container.exec_cmd("LC_ALL=C ujust howdy-pam-add"))
+  until last_command_started.output.include?("Done. Now lock your session or switch user to test the greeter.")
+    answers.each do |k, v|
+      if last_command_started.output.include?(k.to_s)
+        puts("answering #{k} with #{v}")
+        last_command_started.write v
+        sleep 0.5
       end
     end
   end
+  last_command_started.stop
 end
 
 Given(/Howdy (recognizes|doesn't recognize) my face/) do |mode|
   mode = (mode == "recognizes") ? "success" : "fail"
-  container.run(%Q[bash -c 'echo #{mode} > /etc/howdy/mock_mode'])
+  container.run(%Q[bash -c 'echo #{mode} > /run/mock-howdy-mode'])
 end
 
 Given('I start SELinux repair') do
@@ -54,42 +58,44 @@ When('I log out and back in with my password') do
   })
 end
 
-def pam_dump(svc)
-  container.run(%Q{bash -c 'echo "--- /etc/pam.d/#{svc} ---";
-                            sed -n "1,120p" /etc/pam.d/#{svc} || true;
-                            echo "--- howdy lines ---";
-                            grep -n pam_howdy /etc/pam.d/#{svc} || true'})
-end
-
-def ensure_pamtester!
-  path = container.run(%q{bash -c 'command -v pamtester || true'})
-  raise "pamtester not installed in container PATH" if path.strip.empty?
-end
-
 Then(/I should (be|not be) able to log in with the OS greeter and howdy/) do |act|
-  ensure_pamtester!
   #TODO 
   svc = "gdm-password"
 
-  rc = container.run(%Q{bash -c 'printf "\\n" | pamtester #{svc} testuser authenticate >/dev/null 2>&1; printf "%d" $?; exit 0'})
+  run_command_and_stop(container.exec_cmd("howdy test"), fail_on_error: false, exit_timeout: 0.2)
+  puts last_command_started.exit_status
+
+  run_command_and_stop(container.exec_cmd("pamtester -v #{svc} testuser authenticate"), fail_on_error: false, exit_timeout: 0.2)
+  pamtester_exit_code = last_command_started.exit_status
+  puts last_command_started.output
+  puts pamtester_exit_code
   if act == "not be"
-    raise "expected greeter login to fail (#{svc}), rc=#{rc}\n#{pam_dump(svc)}" if rc == "0"
+    raise "expected #{svc} login to fail" if pamtester_exit_code == 0
   else
-    raise "expected greeter login to succeed (#{svc}), rc=#{rc}\n#{pam_dump(svc)}" unless rc == "0"
+    raise "expected #{scv} login to succeed" unless pamtester_exit_code == 0
   end
 end
 
 Then(/I should (not be|be) able to authenticate with sudo using howdy/) do |act|
-  rc = container.run(%q{
-    sudo -u testuser sh -c '
-      sudo -K
-      sudo ls /root >/dev/null 2>&1
-      printf "%d" $?; exit 0
-    '
-  })
+  run_command_and_stop(container.exec_cmd("howdy test"), fail_on_error: false, exit_timeout: 0.2)
+  puts last_command_started.exit_status
+
+  run_command_and_stop(container.exec_cmd("sudo -u testuser sudo -K"))
+  run_command_and_stop(
+    container.exec_cmd(%q{
+      sudo -u testuser sh -c '
+        printf "#!/bin/sh\necho x\n" > /tmp/ask.sh && chmod 700 /tmp/ask.sh
+        SUDO_ASKPASS=/tmp/ask.sh sudo -A -v
+      '
+    }),
+    fail_on_error: false, exit_timeout: 6
+  )
+  run_command_and_stop(container.exec_cmd("sudo -u testuser sudo -n true"), fail_on_error: false, exit_timeout: 0.2)
+  puts last_command_started.output
+  sudo_exit_code = last_command_started.exit_status
   if act == "not be"
-    raise "expected sudo authentication via howdy to fail, rc=#{rc}" unless rc != "0"
+    raise "expected sudo authentication via howdy to fail" if sudo_exit_code == 0
   else
-    raise "expected sudo authentication via howdy to succeed, rc=#{rc}" unless rc == "0"
+    raise "expected sudo authentication via howdy to succeed" unless sudo_exit_code == 0
   end
 end

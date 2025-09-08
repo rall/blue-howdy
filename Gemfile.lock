@@ -1,9 +1,16 @@
 GEM
   remote: https://rubygems.org/
   specs:
+    aruba (2.3.1)
+      bundler (>= 1.17, < 3.0)
+      contracts (>= 0.16.0, < 0.18.0)
+      cucumber (>= 8.0, < 11.0)
+      rspec-expectations (~> 3.4)
+      thor (~> 1.0)
     base64 (0.3.0)
     bigdecimal (3.2.3)
     builder (3.3.0)
+    contracts (0.17.2)
     cucumber (10.1.0)
       base64 (~> 0.2)
       builder (~> 3.2)
@@ -45,9 +52,14 @@ GEM
     memoist3 (1.0.0)
     mini_mime (1.1.5)
     multi_test (1.1.0)
+    rspec-expectations (3.13.5)
+      diff-lcs (>= 1.2.0, < 2.0)
+      rspec-support (~> 3.13.0)
+    rspec-support (3.13.5)
     sys-uname (1.4.1)
       ffi (~> 1.1)
       memoist3 (~> 1.0.0)
+    thor (1.4.0)
 
 PLATFORMS
   aarch64-linux-gnu
@@ -63,6 +75,7 @@ PLATFORMS
   x86_64-linux-musl
 
 DEPENDENCIES
+  aruba (~> 2.3)
   cucumber
 
 BUNDLED WITH

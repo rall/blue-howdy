@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-BeforeAll do
-end
-
 Before do |scenario|
   attach("BASE_IMAGE=#{ENV['MATRIX_BASE']}", "text/plain")
   attach("STEREAM=#{ENV['MATRIX_STREAM']}", "text/plain")

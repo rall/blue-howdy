@@ -29,7 +29,7 @@ class Image < Runtime
   # Tags the result with a unique, local name and returns a Container bound to it.
   def build!(dockerfile)
     args = ["--file", dockerfile, "--build-arg", "BASE_IMAGE=#{@base}", "--tag", @tag]
-    pid = spawn(engine, "build", *args, ".", out: File::NULL)
+    pid = spawn(engine, "build", *args, ".", out: File::NULL, err: File::NULL)
     Process.wait(pid)
     raise "build failed (#{dockerfile})" unless $?.success?
     Container.new(self)
@@ -76,6 +76,11 @@ class Container < Runtime
       raise "Command failed: #{out}" unless wait.value.success?
       out
     end
+  end
+
+  def exec_cmd(*args)
+    raise "Container not started" unless @id
+    %(#{engine} exec -i #{@id} bash -c 'LC_ALL=C script -q -e -c "#{args.join(" ")}" /dev/null')
   end
 
   def cleanup!

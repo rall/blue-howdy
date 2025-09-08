@@ -3,13 +3,13 @@ FROM ${BASE_IMAGE}
 
 ARG HOWDY_OUTCOME=success
 
-COPY features/support/files/mock-howdy.sh /usr/local/bin/howdy
-RUN chmod 0755 /usr/local/bin/howdy
+COPY features/support/files/mock-howdy.sh /usr/bin/howdy
+RUN chmod 0755 /usr/bin/howdy
 
-RUN rpm-ostree install pamtester && \
+RUN rpm-ostree install pamtester util-linux && \
     rpm-ostree cleanup -m
 
-RUN printf "%s\n" "${HOWDY_OUTCOME}" > /etc/howdy/mock_mode
+RUN printf "%s\n" "${HOWDY_OUTCOME}" > /run/mock-howdy-mode
 
 ARG LOGIN_USER=testuser
 ARG LOGIN_UID=1000

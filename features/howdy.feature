@@ -7,10 +7,7 @@ Rule: The just task configures howdy to allow face recognition for login
     Scenario: Howdy login
         Given I run `ujust howdy-pam-add` to add howdy to login
         And Howdy recognizes my face
-        When I start SELinux repair
-        And I log out and back in with my password
-        And I finish SELinux repair
-        And I log out
+        When I log out
         Then I should be able to log in with the OS greeter and howdy
 
     Scenario: Howdy not configured
