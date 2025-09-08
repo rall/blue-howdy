@@ -40,10 +40,7 @@ end
 Then(/I should (be|not be) able to log in with the OS greeter and howdy/) do |act|
   #TODO 
   svc = "gdm-password"
-
-  run_command(container.exec_cmd("pamtester #{svc} testuser authenticate"), fail_on_error: false, exit_timeout: 0.2)
-  last_command_started.write "bad-password\n"
-  last_command_started.stop
+  run_command_and_stop(container.exec_cmd("echo not-the-pw | pamtester #{svc} testuser authenticate"), fail_on_error: false, exit_timeout: 2)
   if act == "not be"
     raise "expected #{svc} login to fail" if last_command_started.exit_status == 0
   else
@@ -52,9 +49,8 @@ Then(/I should (be|not be) able to log in with the OS greeter and howdy/) do |ac
 end
 
 Then(/I should (not be|be) able to authenticate with sudo using howdy/) do |act|
-  run_command(container.exec_cmd("pamtester sudo testuser authenticate"), fail_on_error: false, exit_timeout: 0.2)
-  last_command_started.write "bad-password\n"
-  last_command_started.stop
+  run_command_and_stop(container.exec_cmd("echo not-the-pw | pamtester sudo testuser authenticate"), fail_on_error: false, exit_timeout: 2)
+
   if act == "not be"
     raise "expected sudo authentication via howdy to fail" if last_command_started.exit_status == 0
   else
