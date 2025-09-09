@@ -54,6 +54,6 @@ Then(/I can run 'ujust (.*)'/) do |just_task|
   run_command(container.exec_cmd("ujust #{just_task}", tty: false, interactive: true, user: 0), fail_on_error: true, exit_timeout: 10)
 end
 
-Then('howdy must be installed') do ||
-  run_command_and_stop(container.exec_cmd("howdy -h", tty: false), fail_on_error: true, exit_timeout: 10)
+Then('howdy must be installed') do
+  run_command_and_stop(container.exec_cmd("howdy -h", tty: false), fail_on_error: true)
 end
