@@ -1,0 +1,46 @@
+---
+name: Test container images
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Run tests
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        base:
+          - bazzite
+          - bluefin
+          - bluefin-dx
+          - bluefin-nvidia
+          - bluefin-dx-nvidia-open
+        stream:
+          - gts
+          - latest
+        exclude:
+          - base: bazzite
+            stream: gts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 
+      - name: Set up Ruby
+        uses: actions/setup-ruby@v1
+        with:
+          ruby-version: '3.4.5'
+      - name: Install dependencies
+        run: bundle install
+      - name: Test 
+        run: MATRIX_BASE={{matrix.base}} MATRIX_STREAM={{matrix.stream}} bundle exec cucumber
+      - name: Upload Cucumber report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cucumber-report
+          path: ./report.html
