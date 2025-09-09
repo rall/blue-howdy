@@ -226,16 +226,33 @@ howdy-pam-revert:
     sudo semodule -B
 
     echo "[3/4] Reinstall Howdy policy from image source"
-    src="/usr/share/selinux/howdy/howdy_gdm.te"
-    [ -r "$src" ] || { echo "Missing $src"; exit 1; }
-    howdy-selinux="/var/lib/howdy-selinux"
-    sudo install -d -m 0755 "$howdy-selinux"
-    sudo checkmodule -M -m -o "$howdy-selinux/howdy_gdm.mod" "$src"
-    sudo semodule_package -o "$howdy-selinux/howdy_gdm.pp" -m "$howdy-selinux/howdy_gdm.mod"
-    sudo semodule -i "$howdy-selinux/howdy_gdm.pp"
+    if [[ -x /usr/libexec/howdy-selinux-setup ]]; then
+        # If the systemd unit hasn’t been run (e.g. no systemd in container),
+        # run the setup script directly to compile and install howdy_gdm.te.
+        sudo /usr/libexec/howdy-selinux-setup
+    else
+        src="/usr/share/selinux/howdy/howdy_gdm.te"
+        [ -r "$src" ] || { echo "Missing $src"; exit 1; }
+        howdy_selinux="/var/lib/howdy-selinux"
+        sudo install -d -m 0755 "$howdy_selinux"
+        sudo checkmodule -M -m -o "$howdy_selinux/howdy_gdm.mod" "$src"
+        sudo semodule_package -o "$howdy_selinux/howdy_gdm.pp" -m "$howdy_selinux/howdy_gdm.mod"
+        sudo semodule -i "$howdy_selinux/howdy_gdm.pp"
+    fi
 
     echo "[4/4] Verify module and basic access"
     sudo semodule -l | grep -qi howdy_gdm || { echo "howdy_gdm still missing"; exit 1; }
-    id gdm | grep -q 'video' || { echo "Adding gdm to video group"; sudo gpasswd -a gdm video; sudo systemctl restart gdm; }
+
+    # Add gdm to the video group if necessary, but don’t assume systemd is running.
+    if ! id gdm | grep -q 'video'; then
+        echo "Adding gdm to video group"
+        sudo gpasswd -a gdm video
+        if command -v systemctl >/dev/null && systemctl --quiet is-system-running; then
+            sudo systemctl restart gdm
+        else
+            echo "systemd not running; restart gdm manually if required"
+        fi
+    fi
+
     ls -Z /dev/video* | sed -n '1,10p' || true
     echo "Done. Try: sudo -u gdm howdy test"

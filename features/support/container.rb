@@ -59,28 +59,13 @@ class Container < Runtime
     raise "Failed to start container (empty id)" if @id.empty?
   end
 
-  def run(cmd)
-    stdout, stderr, status =
-      Open3.capture3(engine, "exec", "-i", @id, "bash", "-c", cmd)
-    raise "Command failed: #{stderr}" unless status.success?
-    stdout.strip
-  end
-
-  def popen(cmd)
+  def exec_cmd(cmd, tty: false, user: 1000, interactive: false)
     raise "Container not started" unless @id
-    Open3.popen2e(engine, "exec", "-i", @id, "bash", "-c", cmd) do |stdin, io, wait|
-      stdin.sync = true
-      yield stdin, io if block_given?
-      stdin.close
-      out = io.read
-      raise "Command failed: #{out}" unless wait.value.success?
-      out
-    end
-  end
-
-  def exec_cmd(*args)
-    raise "Container not started" unless @id
-    %(#{engine} exec -i #{@id} bash -c 'LC_ALL=C script -q -e -c "#{args.join(" ")}" /dev/null')
+    flags = tty ? "-it" : "-i"
+    command = interactive ? "script -q -e -c '#{cmd}' /dev/null" : cmd
+    # Minimal env avoids starship and ublue profile hooks; --noprofile/--norc skips shell init
+    env = 'env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C TERM=xterm-256color'
+    %(#{engine} exec #{flags} -u #{user} #{@id} #{env} bash -c "#{command}")
   end
 
   def cleanup!

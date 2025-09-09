@@ -1,21 +1,29 @@
 Feature: Use Howdy to authenticate with my face at login
+
   Background:
     Given I am logged in to a fresh blue-howdy image
-    
-    Scenario: Howdy login
-        Given Howdy recognizes my face
-        When I run `ujust howdy-pam-add` to add howdy to login
-        And I log out
-        Then I should be able to log in with the OS greeter and howdy
 
-    Scenario: Howdy not configured
-        Given Howdy recognizes my face
-        When I run `ujust howdy-pam-add` but don't add howdy to login
-        And I log out
-        Then I should not be able to log in with the OS greeter and howdy
+  Rule: PAM Config must be syntactically correct
 
-    Scenario: My face isn't recognized
-        Given Howdy doesn't recognize my face
-        When I run `ujust howdy-pam-add` to add howdy to login
-        And I log out
-        Then I should not be able to log in with the OS greeter and howdy
+    Scenario: After system boots
+      When I run 'ujust howdy-pam-add' to add howdy to login
+      Then the PAM config should be syntactically correct
+
+  Rule: PAM config must start with howdy line
+
+    Scenario: After system boots
+      When I run 'ujust howdy-pam-add' to add howdy to login
+      Then the PAM config for the display manager should contain 'auth sufficient pam_howdy.so'
+
+  Rule: Howdy must be installed
+
+    Scenario: After system boots
+      When I run 'ujust howdy-pam-add' to add howdy to login
+      Then howdy must be installed
+
+  Rule: SELinux module store must be repairable
+
+    Scenario: After system boots
+      When I run 'ujust howdy-pam-add' to add howdy to login
+      Then I can run 'ujust howdy-selinux-repair-start'
+      And I can run 'ujust howdy-selinux-repair-finish'
