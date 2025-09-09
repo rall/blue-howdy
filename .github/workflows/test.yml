@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: bundle install
       - name: Test 
-        run: MATRIX_BASE={{matrix.base}} MATRIX_STREAM={{matrix.stream}} bundle exec cucumber
+        run: MATRIX_BASE=${{matrix.base}} MATRIX_STREAM=${{matrix.stream}} bundle exec cucumber
       - name: Upload Cucumber report
         if: always()
         uses: actions/upload-artifact@v4
