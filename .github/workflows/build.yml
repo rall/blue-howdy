@@ -33,6 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         base:
+          - bazzite
           - bluefin
           - bluefin-dx
           - bluefin-nvidia
@@ -40,6 +41,9 @@ jobs:
         stream:
           - gts
           - latest
+        exclude:
+          - base: bazzite
+            stream: gts
 
     permissions:
       contents: read
@@ -62,7 +66,7 @@ jobs:
 
       # These stage versions are pinned by https://github.com/renovatebot/renovate
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 
 
       # This is optional, but if you see that your builds are way too big for the runners, you can enable this by uncommenting the following lines:
       # - name: Maximize build space
