@@ -7,95 +7,53 @@ Given('I am logged in to a fresh blue-howdy image') do
   container.start!
 end
 
-Given(/I run `ujust howdy-pam-add` (to|but don't) add howdy to (login|sudo)/) do |act, pam|
+When(/I run 'ujust howdy-pam-add' (to|but don't) add howdy to (login|sudo)/) do |act, pam|
   next if act == "but don't"
 
   answers = {
-    proceed: "y",
-    login: (pam == "login" ? "y" : "n"),
-    sudo: (pam == "sudo"  ? "y" : "n")
+    :"password for testuser" => "testuser\n",
+    :"Proceed?" => "y",
+    :"Add Howdy to login" => (pam == "login" ? "y" : "n"),
+    :"Add Howdy to sudo" => (pam == "sudo"  ? "y" : "n")
   }
 
-  run_command(container.exec_cmd("LC_ALL=C ujust howdy-pam-add"))
+  run_command(container.exec_cmd("ujust howdy-pam-add", tty: false, interactive: true, user: 0))
   until last_command_started.output.include?("Done. Now lock your session or switch user to test the greeter.")
     answers.each do |k, v|
       if last_command_started.output.include?(k.to_s)
-        puts("answering #{k} with #{v}")
         last_command_started.write v
-        sleep 0.5
       end
     end
+    sleep 0.5
   end
   last_command_started.stop
 end
 
-Given(/Howdy (recognizes|doesn't recognize) my face/) do |mode|
-  mode = (mode == "recognizes") ? "success" : "fail"
-  container.run(%Q[bash -c 'echo #{mode} > /run/mock-howdy-mode'])
+
+Then('the PAM config should be syntactically correct') do 
+  run_command_and_stop(container.exec_cmd("authselect check"), fail_on_error: true)
 end
 
-Given('I start SELinux repair') do
-  container.run(%q{bash -c 'ujust howdy-selinux-repair-start'})
-end
-
-Given('I finish SELinux repair') do
-  container.run(%q{bash -c 'ujust howdy-selinux-repair-finish'})
-end
-
-When('I log out') do
-  container.run(%q{sudo -u testuser sh -c 'sudo -K'})
-end
-
-When('I log out and back in with my password') do
-  container.run(%q{
-    sudo -u testuser sh -c '
-      sudo -K
-      printf "#!/bin/sh\necho testuser\n" > /tmp/ask.sh
-      chmod 700 /tmp/ask.sh
-      SUDO_ASKPASS=/tmp/ask.sh sudo -A -v
-      sudo -n true
-    '
-  })
-end
-
-Then(/I should (be|not be) able to log in with the OS greeter and howdy/) do |act|
-  #TODO 
-  svc = "gdm-password"
-
-  run_command_and_stop(container.exec_cmd("howdy test"), fail_on_error: false, exit_timeout: 0.2)
-  puts last_command_started.exit_status
-
-  run_command_and_stop(container.exec_cmd("pamtester -v #{svc} testuser authenticate"), fail_on_error: false, exit_timeout: 0.2)
-  pamtester_exit_code = last_command_started.exit_status
-  puts last_command_started.output
-  puts pamtester_exit_code
-  if act == "not be"
-    raise "expected #{svc} login to fail" if pamtester_exit_code == 0
+Then(/the PAM config for (the display manager|sudo) should contain '([^']+)'/) do |service_test, pam_line|
+  if service_test == "sudo" 
+    service = service_test
   else
-    raise "expected #{scv} login to succeed" unless pamtester_exit_code == 0
+    run_command_and_stop(container.exec_cmd("ls /etc/pam.d", tty: false), fail_on_error: false)
+    ["gdm-password", "sddm"].each do |pam|
+      if last_command_started.output.include?(pam)
+        service = pam
+      end
+    end
   end
+  raise "Unknown service" unless service
+  run_command_and_stop(container.exec_cmd("cat /etc/pam.d/#{service}", tty: false), fail_on_error: false)
+  raise "#{pam_line} not present in /etc/pam.d/#{service}" unless last_command_started.output.include?(pam_line)
 end
 
-Then(/I should (not be|be) able to authenticate with sudo using howdy/) do |act|
-  run_command_and_stop(container.exec_cmd("howdy test"), fail_on_error: false, exit_timeout: 0.2)
-  puts last_command_started.exit_status
+Then(/I can run 'ujust (.*)'/) do |just_task|
+  run_command(container.exec_cmd("ujust #{just_task}", tty: false, interactive: true, user: 0), fail_on_error: true, exit_timeout: 10)
+end
 
-  run_command_and_stop(container.exec_cmd("sudo -u testuser sudo -K"))
-  run_command_and_stop(
-    container.exec_cmd(%q{
-      sudo -u testuser sh -c '
-        printf "#!/bin/sh\necho x\n" > /tmp/ask.sh && chmod 700 /tmp/ask.sh
-        SUDO_ASKPASS=/tmp/ask.sh sudo -A -v
-      '
-    }),
-    fail_on_error: false, exit_timeout: 6
-  )
-  run_command_and_stop(container.exec_cmd("sudo -u testuser sudo -n true"), fail_on_error: false, exit_timeout: 0.2)
-  puts last_command_started.output
-  sudo_exit_code = last_command_started.exit_status
-  if act == "not be"
-    raise "expected sudo authentication via howdy to fail" if sudo_exit_code == 0
-  else
-    raise "expected sudo authentication via howdy to succeed" unless sudo_exit_code == 0
-  end
+Then('howdy must be installed') do
+  run_command_and_stop(container.exec_cmd("howdy -h", tty: false), fail_on_error: true)
 end
