@@ -28,9 +28,9 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ matrix.base }}-${{ matrix.stream }}
       cancel-in-progress: true
-
     strategy:
       fail-fast: false
+      max-parallel: 5
       matrix:
         base:
           - bazzite
@@ -44,7 +44,6 @@ jobs:
         exclude:
           - base: bazzite
             stream: gts
-
     permissions:
       contents: read
       packages: write

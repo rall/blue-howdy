@@ -10,9 +10,13 @@ jobs:
   tests:
     name: Run tests
     runs-on: ubuntu-24.04
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ matrix.base }}-${{ matrix.stream }}
+      cancel-in-progress: true
     environment: TEST
     strategy:
       fail-fast: false
+      max-parallel: 5
       matrix:
         base:
           - bazzite
@@ -26,7 +30,6 @@ jobs:
         exclude:
           - base: bazzite
             stream: gts
-
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 
@@ -47,11 +50,6 @@ jobs:
       # Set up Buildx so we can use the GitHub Actions cache for layers
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Prepare podman environment
-        run: |
-          echo "XDG_DATA_HOME=$GITHUB_WORKSPACE/.podman-data" >> $GITHUB_ENV
-          echo "XDG_CONFIG_HOME=$GITHUB_WORKSPACE/.podman-config" >> $GITHUB_ENV
           mkdir -p "$GITHUB_WORKSPACE/.podman-data" "$GITHUB_WORKSPACE/.podman-config"
 
       - name: Build image
