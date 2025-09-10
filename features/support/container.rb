@@ -8,8 +8,8 @@ class Runtime
   end
 
   def engine
-    return "podman" if system("command -v podman >/dev/null 2>&1")
     return "docker" if system("command -v docker >/dev/null 2>&1")
+    return "podman" if system("command -v podman >/dev/null 2>&1")
     raise "No container engine (need podman or docker)"
   end
 
