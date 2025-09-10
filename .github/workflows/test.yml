@@ -47,11 +47,6 @@ jobs:
       - name: Enable BuildKit
         run: echo "DOCKER_BUILDKIT=1" >> "$GITHUB_ENV"
 
-      # Set up Buildx so we can use the GitHub Actions cache for layers
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-          mkdir -p "$GITHUB_WORKSPACE/.podman-data" "$GITHUB_WORKSPACE/.podman-config"
-
       - name: Build image
         id: build_image
         uses: ./.github/actions/build-image
