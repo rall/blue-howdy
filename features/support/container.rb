@@ -13,6 +13,14 @@ class Runtime
     return "docker" if system("command -v docker >/dev/null 2>&1")
     raise "No container engine (need podman or docker)"
   end
+
+  def podman?
+    engine == "podman"
+  end
+
+  def docker?
+    engine == "docker"
+  end
 end
 
 class Image < Runtime
@@ -52,7 +60,7 @@ class Container < Runtime
   def start!
     run_args = ["run", "-d"]
     # keep host uid/gid mapping only for podman (docker doesn’t know this flag)
-    run_args += ["--userns=keep-id"] if engine == "podman"
+    run_args += ["--userns=keep-id"] if podman?
     run_args += ["--entrypoint", "tail", @image.tag, "-f", "/dev/null"]
     stdout, stderr, status = Open3.capture3(engine, *run_args)
     raise "Failed to start container: #{stderr}" unless status.success?
@@ -65,8 +73,8 @@ class Container < Runtime
     flags = []
     flags << "-i" if interactive
     flags << "-u #{user}" if user
-    env = 'env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C TERM=xterm-256color'
-    command = interactive ? "bash -c \"script -q -e -c '#{cmd}' /dev/null\"" : "bash -lc '#{cmd}'"
+    env = 'env -i PATH=/usr/sbin:/usr/bin:/usr/local/bin:/sbin:/bin LC_ALL=C TERM=xterm-256color'
+    command = interactive ? "bash -c \"script -e -c '#{cmd}' /dev/null\"" : "bash -lc '#{cmd}'"
     debug_engine = debug ? "#{engine} --log-level=debug" : engine
     "#{debug_engine} exec #{flags.join(' ')} #{@id} #{env} #{command}".squeeze(' ').tap do |full|
       STDERR.puts("EXEC: #{full}") if debug
