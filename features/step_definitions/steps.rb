@@ -2,22 +2,18 @@ require "aruba/cucumber"
 require_relative "../support/container"
 
 Given('I am logged in to a fresh blue-howdy image') do
-  test_image = Image.new("test-image", base: base_image.tag)
-  @container = test_image.build!("features/support/Dockerfile")
   container.start!
 end
 
 When(/I run 'ujust howdy-pam-add' (to|but don't) add howdy to (login|sudo)/) do |act, pam|
   next if act == "but don't"
-
   answers = {
     :"password for testuser" => "testuser\n",
     :"Proceed?" => "y",
     :"Add Howdy to login" => (pam == "login" ? "y" : "n"),
     :"Add Howdy to sudo" => (pam == "sudo"  ? "y" : "n")
   }
-
-  run_command(container.exec_cmd("ujust howdy-pam-add", interactive: true, debug: true))
+  run_command(container.exec_cmd("ujust howdy-pam-add", interactive: true))
   until last_command_started.output.include?("Done. Now lock your session or switch user to test the greeter.")
     answers.each do |k, v|
       if last_command_started.output.include?(k.to_s)

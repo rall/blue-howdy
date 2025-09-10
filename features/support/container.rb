@@ -7,8 +7,6 @@ class Runtime
     raise "Not implemented"
   end
 
-  protected
-
   def engine
     return "podman" if system("command -v podman >/dev/null 2>&1")
     return "docker" if system("command -v docker >/dev/null 2>&1")
@@ -21,6 +19,20 @@ class Runtime
 
   def docker?
     engine == "docker"
+  end
+
+  def env
+    if podman? 
+      @env ||= {
+        "XDG_DATA_HOME"   => ENV["XDG_DATA_HOME"]   || "/tmp/blue-howdy/podman-data",
+        "XDG_CONFIG_HOME" => ENV["XDG_CONFIG_HOME"] || "/tmp/blue-howdy/podman-config",
+      }.tap do |podman_env|
+        [podman_env["XDG_DATA_HOME"], podman_env["XDG_CONFIG_HOME"]].each { |d| FileUtils.mkdir_p(d) }
+      end
+    else
+      @env ||= Hash.new
+    end
+    @env
   end
 end
 
@@ -38,10 +50,11 @@ class Image < Runtime
   # Tags the result with a unique, local name and returns a Container bound to it.
   def build!(dockerfile)
     opts = ["--tag=#{@tag}"]
-    opts << ["--file", dockerfile] if docker?
+    opts << "--file=#{dockerfile}" if docker?
     opts << "--build-arg=BASE_IMAGE=#{@base}" if @base
-    opts << docker? ? "." : File.dirname(File.absolute_path(dockerfile))
-    output, status = Open3.capture2e(engine, "build", *opts)
+    opts << "." if docker?
+    opts << File.dirname(File.absolute_path(dockerfile)) if podman?
+    output, status = Open3.capture2e(env, engine, "build", *opts)
     raise "Build failed: #{output}" unless status.success?
     Container.new(self)
   end
@@ -61,15 +74,8 @@ class Container < Runtime
 
   # Start a long-lived container from the image's tag.
   def start!
-    if podman? 
-      run_args =  ["run", "--detach", @image.tag]
-    else
-      run_args = ["run", "--detach"]
-      # keep host uid/gid mapping only for podman (docker doesn’t know this flag)
-      run_args += ["--userns=keep-id"] if podman?
-      run_args += ["--entrypoint", "tail", @image.tag, "-f", "/dev/null"]
-    end
-    stdout, stderr, status = Open3.capture3(engine, *run_args)
+    run_args =  ["run", "--detach", "--entrypoint", "tail", @image.tag, "tail", "-f", "/dev/null"]
+    stdout, stderr, status = Open3.capture3(env, engine, *run_args)
     raise "Failed to start container: #{stderr}" unless status.success?
     @id = stdout.strip
     raise "Failed to start container (empty id)" if @id.empty?
@@ -80,16 +86,17 @@ class Container < Runtime
     flags = []
     flags << "-i" if interactive
     flags << "-t" if interactive && podman?
-    env = 'env -i PATH=/usr/sbin:/usr/bin:/usr/local/bin:/sbin:/bin LC_ALL=C TERM=xterm-256color'
+    localenv = 'env -i TERM=xterm-256color'
     command = interactive ? "bash -c \"script -qef -c '#{cmd}' /dev/null\"" : "bash -lc '#{cmd}'"
     debug_engine = debug ? "#{engine} --log-level=debug" : engine
-    "#{debug_engine} exec #{flags.join(' ')} #{@id} #{env} #{command}".squeeze(' ').tap do |full|
+    "#{debug_engine} exec #{flags.join(' ')} #{@id} #{localenv} #{command}".squeeze(' ').tap do |full|
       STDERR.puts("EXEC: #{full}") if debug
     end
   end
 
   def cleanup!
+    return if podman?
     system(engine, "stop", @id)
-    system(engine, "rm", "-f", @id)
+    system(engine, "rm", @id) 
   end
 end

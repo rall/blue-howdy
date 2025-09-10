@@ -1,21 +1,18 @@
 # frozen_string_literal: true
 
 Before do |scenario|
-  attach("BASE_IMAGE=#{ENV['MATRIX_BASE']}", "text/plain")
-  attach("STEREAM=#{ENV['MATRIX_STREAM']}", "text/plain")
-  puts image_name
-  unless base_image
-    @base_image = Image.new("test_image", base: image_name)
-    base_image.build!("Containerfile")
+  attach("BASE_IMAGE=#{image_name}", "text/plain")
+  @base_image = Image.new("base-image", base: image_name)
+  base_image.build!("Containerfile")
+  @test_image = Image.new("test-image", base: base_image.tag)
+  @container = test_image.build!("features/support/Dockerfile")
+  @container.env.each do |k, v|
+    prepend_environment_variable(k, v)
   end
-end
-
-AfterAll do
-  # stop container, remove image
 end
 
 After do |scenario|
-  if @container
-    @container.cleanup!
-  end
-end
+  @container.cleanup!
+  test_image.cleanup!
+  base_image.cleanup!
+end 
