@@ -28,6 +28,14 @@ jobs:
             stream: gts
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 
+      
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4.5'
+      
       # Pre-pull the heavy Bluefin base so the first build isn't waiting on the registry
       - name: Pre-pull base image
         run: docker pull ghcr.io/ublue-os/${{ matrix.base }}:${{ matrix.stream }}
@@ -55,14 +63,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 
-      
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.4.5'
-      
       - name: Prepare podman environment
         run: |
           echo "XDG_DATA_HOME=$GITHUB_WORKSPACE/.podman-data" >> $GITHUB_ENV
