@@ -58,7 +58,8 @@ class Image < Runtime
     opts << "--build-arg=BASE_IMAGE=#{@base}" if @base
     opts << "." if docker?
     opts << File.dirname(File.absolute_path(dockerfile)) if podman?
-    output, status = Open3.capture2e(env, engine, "build", *opts)
+    output, status = Open3.capture2e(env, engine, "build", *opts) 
+    puts output
     raise "Build failed: #{output}" unless status.success?
     Container.new(self)
   end
