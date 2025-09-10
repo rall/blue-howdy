@@ -65,7 +65,7 @@ class Image < Runtime
   end
 
   def cleanup!
-    system(engine, "image", "rm", "-f", @tag)
+    system(engine, "image", "rm", "-f", @tag, out: File::NULL)
   end
 end
 
@@ -101,7 +101,7 @@ class Container < Runtime
 
   def cleanup!
     return if podman?
-    system(engine, "stop", @id)
-    system(engine, "rm", @id) 
+    system(engine, "stop", @id, out: File::NULL)
+    system(engine, "rm", @id, out: File::NULL) 
   end
 end
