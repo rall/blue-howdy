@@ -56,6 +56,7 @@ class Image < Runtime
     opts = ["--tag=#{@tag}"]
     opts << "--file=#{dockerfile}" if docker?
     opts << "--build-arg=BASE_IMAGE=#{@base}" if @base
+    opts << "--cache-from=#{image_name('howdy')}"
     opts << "." if docker?
     opts << File.dirname(File.absolute_path(dockerfile)) if podman?
     output, status = Open3.capture2e(env, engine, "build", *opts) 
