@@ -50,10 +50,11 @@ class Container < Runtime
 
   # Start a long-lived container from the image's tag.
   def start!
-    stdout, stderr, status =
-      Open3.capture3(engine, "run", "-d",
-                     "--entrypoint", "tail", @image.tag,
-                     "-f", "/dev/null")
+    run_args = ["run", "-d"]
+    # keep host uid/gid mapping only for podman (docker doesn’t know this flag)
+    run_args += ["--userns=keep-id"] if engine == "podman"
+    run_args += ["--entrypoint", "tail", @image.tag, "-f", "/dev/null"]
+    stdout, stderr, status = Open3.capture3(engine, *run_args)
     raise "Failed to start container: #{stderr}" unless status.success?
     @id = stdout.strip
     raise "Failed to start container (empty id)" if @id.empty?
@@ -61,7 +62,7 @@ class Container < Runtime
 
   def exec_cmd(cmd, tty: false, user: 1000, interactive: false)
     raise "Container not started" unless @id
-    flags = tty ? "-it" : "-i"
+    flags = interactive ? "-i" : ""
     command = interactive ? "script -q -e -c '#{cmd}' /dev/null" : cmd
     # Minimal env avoids starship and ublue profile hooks; --noprofile/--norc skips shell init
     env = 'env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C TERM=xterm-256color'
