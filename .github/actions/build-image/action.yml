@@ -1,0 +1,22 @@
+name: Build Image with Buildah
+description: Build ./Containerfile with a BASE_IMAGE
+inputs:
+  base_image: { required: true }
+  image_name: { required: true }
+  tags: { required: true }
+  labels: {required: false}
+runs:
+  using: composite
+  steps:
+    - uses: ublue-os/container-storage-action@main
+    - uses: redhat-actions/buildah-build@v2
+      with:
+        containerfiles: ./Containerfile
+        image: ${{ inputs.image_name }}
+        build-args: |
+          BASE_IMAGE=${{ inputs.base_image }}
+        labels: ${{ inputs.labels }}
+        tags: ${{ inputs.tags }}
+        oci: true
+        layers: true
+        extra-args: --pull-always

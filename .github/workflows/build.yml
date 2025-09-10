@@ -119,20 +119,15 @@ jobs:
           sep-tags: " "
           sep-annotations: " "
 
-      - name: Build Image
+      - name: Build image
         id: build_image
-        uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
+        uses: ./.github/actions/build-image
         with:
-          containerfiles: |
-            ./Containerfile
-          image: ${{ env.IMAGE_NAME }}
+          base_image: ${{ steps.base.outputs.BASE_IMAGE }}
+          image_name: ${{ env.IMAGE_NAME }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
-          build-args:  |
-            BASE_IMAGE=${{ steps.base.outputs.BASE_IMAGE }}
-          oci: true
-          layers: true
-          extra-args: --pull-always
+
       # - name: Run Rechunker
       #   id: rechunk
       #   uses: hhd-dev/rechunk@f153348d8100c1f504dec435460a0d7baf11a9d2 # v1.1.1
