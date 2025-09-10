@@ -60,13 +60,17 @@ class Container < Runtime
     raise "Failed to start container (empty id)" if @id.empty?
   end
 
-  def exec_cmd(cmd, tty: false, user: 1000, interactive: false)
+  def exec_cmd(cmd, user: 1000, interactive: false, debug: false)
     raise "Container not started" unless @id
-    flags = interactive ? "-i" : ""
-    command = interactive ? "script -q -e -c '#{cmd}' /dev/null" : cmd
-    # Minimal env avoids starship and ublue profile hooks; --noprofile/--norc skips shell init
+    flags = []
+    flags << "-i" if interactive
+    flags << "-u #{user}" if user
     env = 'env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C TERM=xterm-256color'
-    %(#{engine} exec #{flags} -u #{user} #{@id} #{env} bash -c "#{command}")
+    command = interactive ? "bash -c \"script -q -e -c '#{cmd}' /dev/null\"" : "bash -lc '#{cmd}'"
+    debug_engine = debug ? "#{engine} --log-level=debug" : engine
+    "#{debug_engine} exec #{flags.join(' ')} #{@id} #{env} #{command}".squeeze(' ').tap do |full|
+      STDERR.puts("EXEC: #{full}") if debug
+    end
   end
 
   def cleanup!
