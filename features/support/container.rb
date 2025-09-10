@@ -74,7 +74,7 @@ class Container < Runtime
     flags << "-i" if interactive
     flags << "-t" if interactive && podman?
     env = 'env -i PATH=/usr/sbin:/usr/bin:/usr/local/bin:/sbin:/bin LC_ALL=C TERM=xterm-256color'
-    command = interactive ? "bash -c \"script -ef -c '#{cmd}' /dev/null\"" : "bash -lc '#{cmd}'"
+    command = interactive ? "bash -c \"script -qef -c '#{cmd}' /dev/null\"" : "bash -lc '#{cmd}'"
     debug_engine = debug ? "#{engine} --log-level=debug" : engine
     "#{debug_engine} exec #{flags.join(' ')} #{@id} #{env} #{command}".squeeze(' ').tap do |full|
       STDERR.puts("EXEC: #{full}") if debug
