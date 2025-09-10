@@ -3,6 +3,8 @@ require "open3"
 require 'securerandom'
 
 class Runtime
+  include ContainerHelper
+
   def cleanup!
     raise "Not implemented"
   end

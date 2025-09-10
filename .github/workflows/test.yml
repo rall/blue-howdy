@@ -1,5 +1,5 @@
 ---
-name: Test container images
+name: Cucumber Tests
 on:
   pull_request:
     branches:
