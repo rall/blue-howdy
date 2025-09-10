@@ -66,7 +66,7 @@ class Image < Runtime
   end
 
   def cleanup!
-    system(engine, "image", "rm", "-f", @tag, out: File::NULL)
+    system(engine, "image", "rm", "-f", @tag, out: File::NULL) unless ci?
   end
 end
 
