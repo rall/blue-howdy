@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require "open3"
+require 'securerandom'
 
 class Runtime
   def cleanup!
@@ -28,18 +29,20 @@ class Image < Runtime
 
   # Initialize with the base image string to pass to the overlay build,
   # or nil if the Dockerfile doesn't require BASE_IMAGE.
-  def initialize(tag, base: nil)
+  def initialize(name, base: nil)
+    @tag = "#{name}-#{SecureRandom.uuid}"
     @base = base
-    @tag  = tag
   end
 
   # Build exactly the Dockerfile given. If @base is set, pass it as BASE_IMAGE.
   # Tags the result with a unique, local name and returns a Container bound to it.
   def build!(dockerfile)
-    args = ["--file", dockerfile, "--build-arg", "BASE_IMAGE=#{@base}", "--tag", @tag]
-    pid = spawn(engine, "build", *args, ".", out: File::NULL, err: File::NULL)
-    Process.wait(pid)
-    raise "build failed (#{dockerfile})" unless $?.success?
+    opts = ["--tag=#{@tag}"]
+    opts << ["--file", dockerfile] if docker?
+    opts << "--build-arg=BASE_IMAGE=#{@base}" if @base
+    opts << docker? ? "." : File.dirname(File.absolute_path(dockerfile))
+    output, status = Open3.capture2e(engine, "build", *opts)
+    raise "Build failed: #{output}" unless status.success?
     Container.new(self)
   end
 
@@ -58,10 +61,14 @@ class Container < Runtime
 
   # Start a long-lived container from the image's tag.
   def start!
-    run_args = ["run", "-d"]
-    # keep host uid/gid mapping only for podman (docker doesn’t know this flag)
-    run_args += ["--userns=keep-id"] if podman?
-    run_args += ["--entrypoint", "tail", @image.tag, "-f", "/dev/null"]
+    if podman? 
+      run_args =  ["run", "--detach", @image.tag]
+    else
+      run_args = ["run", "--detach"]
+      # keep host uid/gid mapping only for podman (docker doesn’t know this flag)
+      run_args += ["--userns=keep-id"] if podman?
+      run_args += ["--entrypoint", "tail", @image.tag, "-f", "/dev/null"]
+    end
     stdout, stderr, status = Open3.capture3(engine, *run_args)
     raise "Failed to start container: #{stderr}" unless status.success?
     @id = stdout.strip
@@ -84,6 +91,5 @@ class Container < Runtime
   def cleanup!
     system(engine, "stop", @id)
     system(engine, "rm", "-f", @id)
-    @image.cleanup!
   end
 end
