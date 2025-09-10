@@ -68,12 +68,11 @@ class Container < Runtime
     raise "Failed to start container (empty id)" if @id.empty?
   end
 
-  def exec_cmd(cmd, user: 1000, interactive: false, debug: false)
+  def exec_cmd(cmd, interactive: false, debug: false)
     raise "Container not started" unless @id
     flags = []
     flags << "-i" if interactive
     flags << "-t" if interactive && podman?
-    flags << "-u #{user}" if user
     env = 'env -i PATH=/usr/sbin:/usr/bin:/usr/local/bin:/sbin:/bin LC_ALL=C TERM=xterm-256color'
     command = interactive ? "bash -c \"script -ef -c '#{cmd}' /dev/null\"" : "bash -lc '#{cmd}'"
     debug_engine = debug ? "#{engine} --log-level=debug" : engine

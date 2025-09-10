@@ -51,7 +51,7 @@ Then(/the PAM config for (the display manager|sudo) should contain '([^']+)'/) d
 end
 
 Then(/I can run 'ujust (.*)'/) do |just_task|
-  run_command(container.exec_cmd("ujust #{just_task}", interactive: true, user: 0), fail_on_error: true, exit_timeout: 10)
+  run_command(container.exec_cmd("ujust #{just_task}", interactive: true), fail_on_error: true, exit_timeout: 10)
 end
 
 Then('howdy must be installed') do
