@@ -28,18 +28,49 @@ jobs:
             stream: gts
 
     steps:
+      # Pre-pull the heavy Bluefin base so the first build isn't waiting on the registry
+      - name: Pre-pull base image
+        run: docker pull ghcr.io/ublue-os/${{ matrix.base }}:${{ matrix.stream }}
+
+      # Enable BuildKit (faster builds + cache awareness)
+      - name: Enable BuildKit
+        run: echo "DOCKER_BUILDKIT=1" >> "$GITHUB_ENV"
+
+      # Set up Buildx so we can use the GitHub Actions cache for layers
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Prime the layer cache by building your Containerfile once with cache-to/from=gha
+      # This does NOT push anything; it just warms the cache and loads the result locally
+      - name: Warm Docker layer cache (Containerfile)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Containerfile
+          build-args: |
+            BASE_IMAGE=ghcr.io/ublue-os/${{ matrix.base }}:${{ matrix.stream }}
+          tags: local/blue-howdy-base:ci
+          load: true
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 
+      
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.4.5'
+      
       - name: Prepare podman environment
         run: |
-          echo "XDG_DATA_HOME=$GITHUB_WORKSPACE/.podman-data"   >> $GITHUB_ENV
+          echo "XDG_DATA_HOME=$GITHUB_WORKSPACE/.podman-data" >> $GITHUB_ENV
           echo "XDG_CONFIG_HOME=$GITHUB_WORKSPACE/.podman-config" >> $GITHUB_ENV
           mkdir -p "$GITHUB_WORKSPACE/.podman-data" "$GITHUB_WORKSPACE/.podman-config"
+      
       - name: Install dependencies
         run: bundle install
+      
       - name: Test 
         run: MATRIX_BASE=${{matrix.base}} MATRIX_STREAM=${{matrix.stream}} bundle exec cucumber

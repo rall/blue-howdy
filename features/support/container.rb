@@ -21,6 +21,10 @@ class Runtime
     engine == "docker"
   end
 
+  def ci?
+    ENV["CI"]
+  end
+
   def env
     if podman? 
       @env ||= {
@@ -85,9 +89,9 @@ class Container < Runtime
     raise "Container not started" unless @id
     flags = []
     flags << "-i" if interactive
-    flags << "-t" if interactive && podman?
+    flags << "-t" if interactive && podman? && !ci?
     localenv = 'env -i TERM=xterm-256color'
-    command = interactive ? "bash -c \"script -qef -c '#{cmd}' /dev/null\"" : "bash -lc '#{cmd}'"
+    command = interactive || ci? ? "bash -c \"script -qef -c '#{cmd}' /dev/null\"" : "bash -lc '#{cmd}'"
     debug_engine = debug ? "#{engine} --log-level=debug" : engine
     "#{debug_engine} exec #{flags.join(' ')} #{@id} #{localenv} #{command}".squeeze(' ').tap do |full|
       STDERR.puts("EXEC: #{full}") if debug
