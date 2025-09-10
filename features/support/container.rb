@@ -72,6 +72,7 @@ class Container < Runtime
     raise "Container not started" unless @id
     flags = []
     flags << "-i" if interactive
+    flags << "-t" if interactive && podman?
     flags << "-u #{user}" if user
     env = 'env -i PATH=/usr/sbin:/usr/bin:/usr/local/bin:/sbin:/bin LC_ALL=C TERM=xterm-256color'
     command = interactive ? "bash -c \"script -e -c '#{cmd}' /dev/null\"" : "bash -lc '#{cmd}'"
