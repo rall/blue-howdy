@@ -39,10 +39,6 @@ jobs:
         with:
           ruby-version: '3.4.5'
       
-      # Pre-pull the heavy Bluefin base so the first build isn't waiting on the registry
-      - name: Pre-pull base image
-        run: docker pull ghcr.io/ublue-os/${{ matrix.base }}:${{ matrix.stream }}
-
       # Enable BuildKit (faster builds + cache awareness)
       - name: Enable BuildKit
         run: echo "DOCKER_BUILDKIT=1" >> "$GITHUB_ENV"
