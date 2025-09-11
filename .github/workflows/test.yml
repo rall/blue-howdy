@@ -16,7 +16,6 @@ jobs:
     environment: TEST
     strategy:
       fail-fast: false
-      max-parallel: 5
       matrix:
         base:
           - bazzite
@@ -54,5 +53,5 @@ jobs:
       - name: Install dependencies
         run: bundle install
       
-      - name: Test 
+      - name: Test
         run: MATRIX_BASE=${{matrix.base}} MATRIX_STREAM=${{matrix.stream}} bundle exec cucumber
