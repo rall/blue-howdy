@@ -46,14 +46,13 @@ class Image < Runtime
   attr_reader :tag
 
   # Initialize with the base image string to pass to the overlay build
-  def initialize(name, base: nil)
-    @tag = "#{name}-#{SecureRandom.uuid}"
+  def initialize(name, tag: nil, base: nil)
+    @tag = tag || "#{name}-#{SecureRandom.uuid}"
     @base = base
   end
 
   def self.prebuilt(tag)
-    @tag = tag
-    self
+    new('', tag: tag)
   end
 
   # Build exactly the Dockerfile given. If @base is set, pass it as BASE_IMAGE.
