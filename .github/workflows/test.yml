@@ -45,13 +45,20 @@ jobs:
       - name: Enable BuildKit
         run: echo "DOCKER_BUILDKIT=1" >> "$GITHUB_ENV"
 
+      - name: Set up ublue storage
+        uses: ublue-os/container-storage-action@main
+
       - name: Build image
         id: build_image
-        uses: ./.github/actions/build-image
+        uses: redhat-actions/buildah-build@v2
         with:
-          base_image: ghcr.io/ublue-os/${{ matrix.base }}:${{ matrix.stream }}
-          image_name: ${{ matrix.base }}-howdy
+          containerfiles: ./Containerfile
+          image: ${{ matrix.base }}-howdy
+          build-args: |
+            BASE_IMAGE=ghcr.io/ublue-os/${{ matrix.base }}:${{ matrix.stream }}
           tags: ${{ matrix.stream }}
+          oci: true
+          layers: true
 
       - name: Test
         run: MATRIX_BASE=${{matrix.base}} MATRIX_STREAM=${{matrix.stream}} bundle exec cucumber
