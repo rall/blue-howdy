@@ -38,6 +38,9 @@ jobs:
         with:
           ruby-version: '3.4.5'
       
+      - name: Install dependencies
+        run: bundle install
+      
       # Enable BuildKit (faster builds + cache awareness)
       - name: Enable BuildKit
         run: echo "DOCKER_BUILDKIT=1" >> "$GITHUB_ENV"
@@ -50,8 +53,5 @@ jobs:
           image_name: ${{ matrix.base }}-howdy
           tags: ${{ matrix.stream }}
 
-      - name: Install dependencies
-        run: bundle install
-      
       - name: Test
         run: MATRIX_BASE=${{matrix.base}} MATRIX_STREAM=${{matrix.stream}} bundle exec cucumber

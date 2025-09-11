@@ -11,7 +11,7 @@ module ContainerHelper
       raise "unknown image"
     end
     if local
-      local_image
+      "localhost/#{local_image}"
     else
       "ghcr.io/ublue-os/#{local_image}"
     end
