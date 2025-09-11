@@ -56,11 +56,12 @@ jobs:
           image: ${{ matrix.base }}-howdy
           build-args: |
             BASE_IMAGE=ghcr.io/ublue-os/${{ matrix.base }}:${{ matrix.stream }}
+          extra-args: --squash
           tags: ${{ matrix.stream }}
           oci: true
           layers: false
 
-      - name: Make image avaialble to docker
+      - name: Push image to docker store
         run: buildah push ${{ matrix.base }}-howdy:${{ matrix.stream }} docker-daemon:${{ matrix.base }}-howdy:${{ matrix.stream }}
 
       - name: Test
