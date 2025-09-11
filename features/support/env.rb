@@ -3,7 +3,7 @@
 Before do |scenario|
   attach("BASE_IMAGE=#{image_name}", "text/plain")
   if (ENV['CI'])
-    @base_image = Image.prebuilt(image_name)
+    @base_image = Image.prebuilt(image_name("howdy"))
   else 
     @base_image = Image.new("base-image")
     @base_image.build!("Containerfile")
