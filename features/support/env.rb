@@ -17,5 +17,5 @@ end
 After do |scenario|
   @container.cleanup!
   test_image.cleanup!
-  @base_image.cleanup!
+  @base_image.cleanup! if @base_image
 end 
