@@ -48,6 +48,9 @@ jobs:
       - name: Set up ublue storage
         uses: ublue-os/container-storage-action@main
 
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+
       - name: Build image
         id: build_image
         uses: redhat-actions/buildah-build@v2
