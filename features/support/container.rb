@@ -54,7 +54,7 @@ class Image < Runtime
   # Build exactly the Dockerfile given. If @base is set, pass it as BASE_IMAGE.
   # Tags the result with a unique, local name and returns a Container bound to it.
   def build!(dockerfile)
-    opts = ["--tag=#{@tag}"]
+    opts = ["--tag=#{@tag}", "--pull=false"]
     opts << "--file=#{dockerfile}" if docker?
     opts << "--build-arg=BASE_IMAGE=#{@base}" if @base
     opts << "." if docker?
