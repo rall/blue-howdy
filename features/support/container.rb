@@ -27,6 +27,10 @@ class Runtime
     ENV["CI"]
   end
 
+  def tty?
+    @tty ||= system("tty --silent")
+  end
+
   def env
     if podman? 
       @env ||= {
@@ -89,8 +93,8 @@ class Container < Runtime
   def exec_cmd(cmd, interactive: false, debug: false)
     raise "Container not started" unless @id
     flags = []
-    flags << "-i" if interactive
-    flags << "-t" if interactive && podman? && !ci?
+    flags << "--interactive" if interactive
+    flags << "--tty" if interactive && !tty?
     localenv = 'env -i TERM=xterm-256color'
     command = interactive || ci? ? "bash -c \"script -qef -c '#{cmd}' /dev/null\"" : "bash -lc '#{cmd}'"
     debug_engine = debug ? "#{engine} --log-level=debug" : engine
