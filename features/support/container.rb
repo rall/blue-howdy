@@ -46,13 +46,9 @@ class Image < Runtime
   attr_reader :tag
 
   # Initialize with the base image string to pass to the overlay build
-  def initialize(name, tag: nil, base: nil)
-    @tag = tag || "#{name}-#{SecureRandom.uuid}"
+  def initialize(name, base: nil)
+    @tag = "#{name}-#{SecureRandom.uuid}"
     @base = base
-  end
-
-  def self.prebuilt(tag)
-    new('', tag: tag)
   end
 
   # Build exactly the Dockerfile given. If @base is set, pass it as BASE_IMAGE.
@@ -61,7 +57,6 @@ class Image < Runtime
     opts = ["--tag=#{@tag}"]
     opts << "--file=#{dockerfile}" if docker?
     opts << "--build-arg=BASE_IMAGE=#{@base}" if @base
-    opts << "--cache-from=#{image_name('howdy')}"
     opts << "." if docker?
     opts << File.dirname(File.absolute_path(dockerfile)) if podman?
     output, status = Open3.capture2e(env, engine, "build", *opts) 

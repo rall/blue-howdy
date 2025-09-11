@@ -2,13 +2,12 @@
 
 Before do |scenario|
   attach("BASE_IMAGE=#{image_name}", "text/plain")
-  if (ENV['CI'])
-    @base_image = Image.prebuilt(image_name("howdy", local: true))
-  else 
+  if (!ENV['CI'])
     @base_image = Image.new("base-image")
     @base_image.build!("Containerfile")
   end
-  @test_image = Image.new(image_name('howdy'), base: @base_image.tag)
+  base_tag = ENV['CI'] ? image_name('howdy', local: true) : @base_image.tag
+  @test_image = Image.new(image_name('howdy-test-runner'), base: base_tag)
   @container = test_image.build!("features/support/Dockerfile")
   @container.env.each do |k, v|
     prepend_environment_variable(k, v)
