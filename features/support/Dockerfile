@@ -1,9 +1,7 @@
 ARG BASE_IMAGE=ghcr.io/rall/bluefin-dx-nvidia-open-howdy:gts
 FROM ${BASE_IMAGE}
 
-RUN rpm-ostree install pamtester strace expect util-linux \
-    && (rpm-ostree install util-linux-script || echo "util-linux-script not available; skipping") \
-    && rpm-ostree cleanup -m
+RUN rpm-ostree install pamtester strace expect && rpm-ostree cleanup -m
 
 ARG LOGIN_USER=testuser
 ARG LOGIN_UID=1000

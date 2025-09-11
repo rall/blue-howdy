@@ -1,42 +1,75 @@
 # frozen_string_literal: true
 require "open3"
+require 'securerandom'
 
 class Runtime
+  include ContainerHelper
+
   def cleanup!
     raise "Not implemented"
   end
 
-  protected
-
   def engine
-    return "podman" if system("command -v podman >/dev/null 2>&1")
     return "docker" if system("command -v docker >/dev/null 2>&1")
+    return "podman" if system("command -v podman >/dev/null 2>&1")
     raise "No container engine (need podman or docker)"
+  end
+
+  def podman?
+    engine == "podman"
+  end
+
+  def docker?
+    engine == "docker"
+  end
+
+  def ci?
+    ENV["CI"]
+  end
+
+  def tty?
+    @tty ||= system("tty --silent")
+  end
+
+  def env
+    if podman? 
+      @env ||= {
+        "XDG_DATA_HOME"   => ENV["XDG_DATA_HOME"]   || "/tmp/blue-howdy/podman-data",
+        "XDG_CONFIG_HOME" => ENV["XDG_CONFIG_HOME"] || "/tmp/blue-howdy/podman-config",
+      }.tap do |podman_env|
+        [podman_env["XDG_DATA_HOME"], podman_env["XDG_CONFIG_HOME"]].each { |d| FileUtils.mkdir_p(d) }
+      end
+    else
+      @env ||= Hash.new
+    end
+    @env
   end
 end
 
 class Image < Runtime
   attr_reader :tag
 
-  # Initialize with the base image string to pass to the overlay build,
-  # or nil if the Dockerfile doesn't require BASE_IMAGE.
-  def initialize(tag, base: nil)
+  # Initialize with the base image string to pass to the overlay build
+  def initialize(name, base: nil)
+    @tag = "#{name}-#{SecureRandom.uuid}"
     @base = base
-    @tag  = tag
   end
 
   # Build exactly the Dockerfile given. If @base is set, pass it as BASE_IMAGE.
   # Tags the result with a unique, local name and returns a Container bound to it.
   def build!(dockerfile)
-    args = ["--file", dockerfile, "--build-arg", "BASE_IMAGE=#{@base}", "--tag", @tag]
-    pid = spawn(engine, "build", *args, ".", out: File::NULL, err: File::NULL)
-    Process.wait(pid)
-    raise "build failed (#{dockerfile})" unless $?.success?
+    opts = ["--tag=#{@tag}", "--pull=false"]
+    opts << "--file=#{dockerfile}" if docker?
+    opts << "--build-arg=BASE_IMAGE=#{@base}" if @base
+    opts << "." if docker?
+    opts << File.dirname(File.absolute_path(dockerfile)) if podman?
+    output, status = Open3.capture2e(env, engine, "build", *opts) 
+    raise "Build failed: #{output}" unless status.success?
     Container.new(self)
   end
 
   def cleanup!
-    system(engine, "image", "rm", "-f", @tag)
+    system(engine, "image", "rm", "-f", @tag, out: File::NULL) unless ci?
   end
 end
 
@@ -50,27 +83,28 @@ class Container < Runtime
 
   # Start a long-lived container from the image's tag.
   def start!
-    stdout, stderr, status =
-      Open3.capture3(engine, "run", "-d",
-                     "--entrypoint", "tail", @image.tag,
-                     "-f", "/dev/null")
+    run_args =  ["run", "--detach", "--entrypoint", "tail", @image.tag, "tail", "-f", "/dev/null"]
+    stdout, stderr, status = Open3.capture3(env, engine, *run_args)
     raise "Failed to start container: #{stderr}" unless status.success?
     @id = stdout.strip
     raise "Failed to start container (empty id)" if @id.empty?
   end
 
-  def exec_cmd(cmd, tty: false, user: 1000, interactive: false)
+  def exec_cmd(cmd, interactive: false, debug: false, root: false)
     raise "Container not started" unless @id
-    flags = tty ? "-it" : "-i"
-    command = interactive ? "script -q -e -c '#{cmd}' /dev/null" : cmd
-    # Minimal env avoids starship and ublue profile hooks; --noprofile/--norc skips shell init
-    env = 'env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C TERM=xterm-256color'
-    %(#{engine} exec #{flags} -u #{user} #{@id} #{env} bash -c "#{command}")
+    flags = []
+    flags << "--interactive" if interactive
+    flags << "--user=0" if root
+    localenv = 'env -i TERM=xterm-256color'      
+    debug_engine = debug ? "#{engine} --log-level=debug" : engine
+    "#{debug_engine} exec #{flags.join(' ')} #{@id} #{localenv} bash -lc '#{cmd}'".squeeze(' ').tap do |full|
+      STDERR.puts("EXEC: #{full}") if debug
+    end
   end
 
   def cleanup!
-    system(engine, "stop", @id)
-    system(engine, "rm", "-f", @id)
-    @image.cleanup!
+    return if podman?
+    system(engine, "stop", @id, out: File::NULL)
+    system(engine, "rm", @id, out: File::NULL) 
   end
 end

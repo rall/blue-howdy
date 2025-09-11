@@ -1,0 +1,71 @@
+---
+name: Cucumber Tests
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Run tests
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ matrix.base }}-${{ matrix.stream }}
+      cancel-in-progress: true
+    environment: TEST
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        base:
+          - bazzite
+          - bluefin
+          - bluefin-dx
+          - bluefin-nvidia
+          - bluefin-dx-nvidia-open
+        stream:
+          - gts
+          - latest
+        exclude:
+          - base: bazzite
+            stream: gts
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 
+      
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4.5'
+      
+      - name: Install dependencies
+        run: bundle install
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Set up ublue storage
+        uses: ublue-os/container-storage-action@main
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+
+      - name: Build image
+        id: build_image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          containerfiles: ./Containerfile
+          image: ${{ matrix.base }}-howdy
+          build-args: |
+            BASE_IMAGE=ghcr.io/ublue-os/${{ matrix.base }}:${{ matrix.stream }}
+          extra-args: --squash
+          tags: ${{ matrix.stream }}
+          oci: true
+          layers: false
+
+      - name: Push image to docker store
+        run: buildah push ${{ matrix.base }}-howdy:${{ matrix.stream }} docker-daemon:${{ matrix.base }}-howdy:${{ matrix.stream }}
+
+      - name: Test
+        run: MATRIX_BASE=${{matrix.base}} MATRIX_STREAM=${{matrix.stream}} bundle exec cucumber
