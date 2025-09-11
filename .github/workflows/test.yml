@@ -16,7 +16,7 @@ jobs:
     environment: TEST
     strategy:
       fail-fast: false
-      max-parallel: 5
+      max-parallel: 10
       matrix:
         base:
           - bazzite
