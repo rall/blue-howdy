@@ -3,27 +3,19 @@ Feature: Use Howdy to authenticate for sudo
   Background:
     Given I am logged in to a fresh blue-howdy image
 
-  Rule: PAM Config must be syntactically correct
-
-    Scenario: After system boots
+    Scenario: PAM Config must be syntactically correct
       When I run 'ujust howdy-pam-add' to add howdy to sudo
       Then the PAM config should be syntactically correct
 
-  Rule: PAM config must start with howdy line
-
-    Scenario: After system boots
+    Scenario: PAM config must start with howdy line
       When I run 'ujust howdy-pam-add' to add howdy to sudo
       Then the PAM config for sudo should contain 'auth sufficient pam_howdy.so'
 
-  Rule: Howdy must be installed
-
-    Scenario: After system boots
+    Scenario: Howdy must be installed
       When I run 'ujust howdy-pam-add' to add howdy to sudo
       Then howdy must be installed
 
-  Rule: SELinux module store must be repairable
-
-    Scenario: After system boots
+    Scenario: SELinux module store must be repairable
       When I run 'ujust howdy-pam-add' to add howdy to sudo
       Then I can run 'ujust howdy-selinux-repair-start'
       And I can run 'ujust howdy-selinux-repair-finish'
