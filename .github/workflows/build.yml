@@ -33,15 +33,24 @@ jobs:
       matrix:
         base:
           - bazzite
+          - bazzite-dx
+          - bazzite-dx-nvidia
+          - bazzite-dx-nvidia-gnome
           - bluefin
           - bluefin-dx
           - bluefin-nvidia
           - bluefin-dx-nvidia-open
         stream:
           - gts
-          - latest
+          - stable
         exclude:
           - base: bazzite
+            stream: gts
+          - base: bazzite-dx
+            stream: gts
+          - base: bazzite-dx-nvidia
+            stream: gts
+          - base: bazzite-dx-nvidia-gnome
             stream: gts
     permissions:
       contents: read
