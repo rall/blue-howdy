@@ -61,7 +61,7 @@ jobs:
           layers: true
 
       - name: Make image avaialble to docker
-        run: buildah push ${{ matrix.base }}-howdy::${{ matrix.stream }} docker-daemon:${{ matrix.base }}-howdy::${{ matrix.stream }}
+        run: buildah push ${{ matrix.base }}-howdy:${{ matrix.stream }} docker-daemon:${{ matrix.base }}-howdy:${{ matrix.stream }}
 
       - name: Test
         run: MATRIX_BASE=${{matrix.base}} MATRIX_STREAM=${{matrix.stream}} bundle exec cucumber
