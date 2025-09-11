@@ -5,11 +5,8 @@ module ContainerHelper
     base = ENV["MATRIX_BASE"]
     stream = ENV["MATRIX_STREAM"]
     suffix_string = suffix ? "-#{suffix}" : ""
-    if base && stream
-      local_image = "#{base}#{suffix_string}:#{stream}"
-    else
-      raise "unknown image"
-    end
+    raise "unknown image" unless base && stream
+    local_image = "#{base}#{suffix_string}:#{stream}"
     if local
       local_image
     else
