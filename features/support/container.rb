@@ -90,15 +90,14 @@ class Container < Runtime
     raise "Failed to start container (empty id)" if @id.empty?
   end
 
-  def exec_cmd(cmd, interactive: false, debug: false)
+  def exec_cmd(cmd, interactive: false, debug: false, root: false)
     raise "Container not started" unless @id
     flags = []
     flags << "--interactive" if interactive
-    flags << "--tty" if interactive && !tty?
-    localenv = 'env -i TERM=xterm-256color'
-    command = interactive || ci? ? "bash -c \"script -qef -c '#{cmd}' /dev/null\"" : "bash -lc '#{cmd}'"
+    flags << "--user=0" if root
+    localenv = 'env -i TERM=xterm-256color'      
     debug_engine = debug ? "#{engine} --log-level=debug" : engine
-    "#{debug_engine} exec #{flags.join(' ')} #{@id} #{localenv} #{command}".squeeze(' ').tap do |full|
+    "#{debug_engine} exec #{flags.join(' ')} #{@id} #{localenv} bash -lc '#{cmd}'".squeeze(' ').tap do |full|
       STDERR.puts("EXEC: #{full}") if debug
     end
   end

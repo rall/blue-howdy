@@ -57,7 +57,7 @@ howdy-pam-add:
   echo "!!! WARNING !!!"
   echo "This modifies PAM. Test the greeter BEFORE rebooting."
   echo "If the greeter fails: Ctrl+Alt+F3 -> login -> 'ujust howdy-pam-revert' -> restart gdm/sddm"
-  read -p "Proceed? [y/N]: " -n 1 -r; echo
+  echo "Proceed? [y/N]: " && read -n 1 -r; echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     if [[ $has_gdm -eq 1 ]]; then
       read -p "Add Howdy to login (GDM: $GDM_PAM)? [y/N]: " -n 1 -r; echo

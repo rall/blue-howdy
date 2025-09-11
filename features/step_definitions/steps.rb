@@ -13,7 +13,7 @@ When(/I run 'ujust howdy-pam-add' (to|but don't) add howdy to (login|sudo)/) do 
     :"Add Howdy to login" => (pam == "login" ? "y" : "n"),
     :"Add Howdy to sudo" => (pam == "sudo"  ? "y" : "n")
   }
-  run_command(container.exec_cmd("ujust howdy-pam-add", interactive: true))
+  run_command(container.exec_cmd("ujust howdy-pam-add", interactive: true, root: true))
   until last_command_started.output.include?("Done. Now lock your session or switch user to test the greeter.")
     answers.each do |k, v|
       if last_command_started.output.include?(k.to_s)
