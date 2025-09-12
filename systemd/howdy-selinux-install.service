@@ -1,8 +1,8 @@
 [Unit]
 Description=Install Howdy SELinux policy
-ConditionSecurity=selinux
-ConditionPathExists=/usr/libexec/howdy-selinux-setup
-After=local-fs.target selinux-autorelabel-mark.service selinux-policy-migrate-local-changes.service
+Before=multi-user.target
+After=local-fs.target
+DefaultDependencies=no
 RequiresMountsFor=/etc/selinux /var/lib/selinux
 
 [Service]
