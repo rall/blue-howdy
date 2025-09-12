@@ -31,6 +31,14 @@ class Runtime
     @tty ||= system("tty --silent")
   end
 
+  def var_volume
+    @var_volume ||= "var-#{SecureRandom.uuid}"
+  end
+
+  def etc_volume
+    @etc_volume ||= "etc-#{SecureRandom.uuid}"
+  end
+
   def env
     if podman? 
       @env ||= {
@@ -86,9 +94,9 @@ class Container < Runtime
     opts = [
       "--detach",
       "--privileged",
-      "--volume=var:/var:Z",
+      "--volume=#{var_volume}:/var:Z",
       "--volume=/sys/fs/cgroup:/sys/fs/cgroup:ro,Z",
-      "--volume=etc:/etc:Z",
+      "--volume=#{etc_volume}:/etc:Z",
       "--entrypoint=tail",
     ]
     run_args =  ["run", *opts, @image.tag, "tail", "-f", "/dev/null"]
@@ -115,13 +123,13 @@ class Container < Runtime
     end
   end
 
-  def stop!(silent: false)
+  def stop!(silent: true)
     system(engine, "stop", @id, out: silent ? File::NULL : $stdout)
-    system(engine, "container", "rm", @id, out: silent ? File::NULL : $stdout) if docker?
+    system(engine, "container", "rm", @id, out: silent ? File::NULL : $stdout)
   end
 
-  def cleanup!(silent: false)
+  def cleanup!(silent: true)
     stop!(silent: silent)
-    system(engine, "volume", "rm", "var", "etc", out: silent ? File::NULL : $stdout)
+    system(engine, "volume", "rm", var_volume, etc_volume, out: silent ? File::NULL : $stdout)
   end
 end
