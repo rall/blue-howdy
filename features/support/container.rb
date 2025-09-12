@@ -99,7 +99,7 @@ class Container < Runtime
   end
 
   def restart!
-    cleanup!
+    stop!
     start!
   end
 
@@ -115,9 +115,13 @@ class Container < Runtime
     end
   end
 
-  def cleanup!(silent: true)
-    return if podman?
+  def stop!(silent: false)
     system(engine, "stop", @id, out: silent ? File::NULL : $stdout)
-    system(engine, "rm", @id, out: silent ? File::NULL : $stdout) 
+    system(engine, "container", "rm", @id, out: silent ? File::NULL : $stdout) if docker?
+  end
+
+  def cleanup!(silent: false)
+    stop!(silent: silent)
+    system(engine, "volume", "rm", "var", "etc", out: silent ? File::NULL : $stdout)
   end
 end
