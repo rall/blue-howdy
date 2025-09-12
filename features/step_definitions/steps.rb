@@ -53,3 +53,7 @@ end
 Then('howdy must be installed') do
   run_command_and_stop(container.exec_cmd("howdy -h"), fail_on_error: true)
 end
+
+When('I reboot') do ||
+  container.restart!
+end

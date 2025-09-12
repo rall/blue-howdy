@@ -83,11 +83,24 @@ class Container < Runtime
 
   # Start a long-lived container from the image's tag.
   def start!
-    run_args =  ["run", "--detach", "--entrypoint", "tail", @image.tag, "tail", "-f", "/dev/null"]
+    opts = [
+      "--detach",
+      "--privileged",
+      "--volume=var:/var:Z",
+      "--volume=/sys/fs/cgroup:/sys/fs/cgroup:ro,Z",
+      "--volume=etc:/etc:Z",
+      "--entrypoint=tail",
+    ]
+    run_args =  ["run", *opts, @image.tag, "tail", "-f", "/dev/null"]
     stdout, stderr, status = Open3.capture3(env, engine, *run_args)
     raise "Failed to start container: #{stderr}" unless status.success?
     @id = stdout.strip
     raise "Failed to start container (empty id)" if @id.empty?
+  end
+
+  def restart!
+    cleanup!
+    start!
   end
 
   def exec_cmd(cmd, interactive: false, debug: false, root: false)
@@ -102,9 +115,9 @@ class Container < Runtime
     end
   end
 
-  def cleanup!
+  def cleanup!(silent: true)
     return if podman?
-    system(engine, "stop", @id, out: File::NULL)
-    system(engine, "rm", @id, out: File::NULL) 
+    system(engine, "stop", @id, out: silent ? File::NULL : $stdout)
+    system(engine, "rm", @id, out: silent ? File::NULL : $stdout) 
   end
 end
