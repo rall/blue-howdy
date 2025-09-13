@@ -21,5 +21,4 @@ Feature: Use Howdy to authenticate for sudo
     Scenario: SELinux module store must be repairable
       When I run 'ujust howdy-pam-add' to add howdy to sudo
       And I reboot
-      Then I can run 'ujust howdy-selinux-repair-start'
-      And I can run 'ujust howdy-selinux-repair-finish'
+      Then I can run 'ujust howdy-selinux-repair'

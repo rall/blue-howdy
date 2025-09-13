@@ -21,5 +21,4 @@ Feature: Use Howdy to authenticate with my face at login
     Scenario: SELinux module store must be repairable
       When I run 'ujust howdy-pam-add' to add howdy to login
       And I reboot
-      Then I can run 'ujust howdy-selinux-repair-start'
-      And I can run 'ujust howdy-selinux-repair-finish'
+      Then I can run 'ujust howdy-selinux-repair'
