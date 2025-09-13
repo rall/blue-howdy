@@ -185,17 +185,24 @@ howdy-pam-add:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    echo "[1/4] Relabel SELinux DB paths (post-reboot hygiene)"
+    echo "[1/3] Relabel SELinux DB paths (post-reboot hygiene)"
     sudo restorecon -RFv /etc/selinux /var/lib/selinux || true
-
-    echo "[2/4] Rebuild policy module store"
     sudo semodule -B
 
-    echo "[3/4] Reinstall Howdy policy from image source"
-    sudo /usr/libexec/howdy-selinux-setup
-    sudo semodule --install=howdy_gdm_auto.pp
+    echo "[2/3] Compile/install Howdy policy"
+    HS=/var/lib/howdy-selinux
+    sudo install -d -m 0755 "$HS"
+    cd "$HS"
+    sudo /usr/libexec/howdy-selinux-setup || true
+    if [ ! -f howdy_gdm_auto.pp ]; then
+        SRC=/usr/share/selinux/howdy/howdy_gdm.te
+        [ -r "$SRC" ]
+        sudo checkmodule -M -m -o howdy_gdm.mod "$SRC"
+        sudo semodule_package -o howdy_gdm_auto.pp -m howdy_gdm.mod
+    fi
+    sudo semodule -i howdy_gdm_auto.pp
 
-    echo "[4/4] Verify module and basic access"
+    echo "[3/3] Verify module"
     sudo semodule -l | grep -qi howdy_gdm || { echo "howdy_gdm missing"; exit 1; }
 
     echo "Done. Try: sudo -u gdm howdy test"

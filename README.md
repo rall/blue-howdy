@@ -109,7 +109,14 @@ If the SELinux module store gets corrupted (e.g. AVCs show `{ map }` denials for
 ujust howdy-selinux-repair
 ```
 
-This will relabel the SELinux store, rebuild modules, reinstall the `howdy_gdm` policy from the image, and verify it is loaded.
+ The task relabels the SELinux store, rebuilds modules, compiles the policy under `/var/lib/howdy-selinux`, installs it, and verifies `howdy_gdm` is loaded.
+
+Verify and test:
+
+```
+sudo semodule -l | grep howdy_gdm
+sudo -u gdm howdy test
+```
 
 ---
 
