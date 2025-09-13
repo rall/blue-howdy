@@ -95,17 +95,31 @@ howdy-pam-add:
 
     pick_byid() {
         local n="$1"
-        local link byid
-        link="$(readlink -f "$n" || true)"
-        byid="$(ls -l /dev/v4l/by-id/ 2>/dev/null | awk -v t="$link" '$NF==t{print "/dev/v4l/by-id/"$9; exit}')"
+        local devlinks byid
+        devlinks="$(udevadm info --query=property --name="$n" 2>/dev/null | awk -F= '/^DEVLINKS=/{print $2}' || true)"
+        for link in $devlinks; do
+            if [[ "$link" == /dev/v4l/by-id/* ]]; then
+                byid="$link"
+                break
+            fi
+        done
         if [ -n "${byid:-}" ]; then printf '%s' "$byid"; else printf '%s' "$n"; fi
     }
 
     set_device() {
         local path="$1"
-        sudo sed -i "s|^#\\?[[:space:]]*device_path[[:space:]]*=.*|device_path = ${path}|" /etc/howdy/config.ini
-        grep -E '^[[:space:]]*device_path' /etc/howdy/config.ini || true
+        sudo sed -i "s|^#\?[[:space:]]*device_path[[:space:]]*=.*|device_path = ${path}|" /etc/howdy/config.ini
+        # Also store the numeric device id for compatibility
+        local id
+        id="$(udevadm info --query=property --name="$path" 2>/dev/null | grep -oE '^DEVNAME=/dev/video[0-9]+' | sed 's|^DEVNAME=/dev/video||' | head -n1)"
+        if [ -n "${id:-}" ]; then
+            sudo sed -i "s|^#\?[[:space:]]*device_id[[:space:]]*=.*|device_id = ${id}|" /etc/howdy/config.ini
+        fi
+        grep -E '^[[:space:]]*(device_path|device_id)' /etc/howdy/config.ini || true
     }
+
+
+
 
     echo "Trying each /dev/video* with howdy test (runs as root)"
     kept_paths=()
