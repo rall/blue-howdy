@@ -103,23 +103,13 @@ The task will run `sudo howdy test` against each camera node, skip devices that 
 
 ### SELinux repair
 
-If the SELinux module store gets corrupted (e.g. AVCs show `{ map }` denials for `/dev/video*`), repair and reinstall the Howdy policy in two steps:
-
-1. Mark for a full relabel and reboot:
+If the SELinux module store gets corrupted (e.g. AVCs show `{ map }` denials for `/dev/video*`), repair and reinstall the Howdy policy:
 
 ```
-ujust howdy-selinux-repair-start
-sudo reboot
+ujust howdy-selinux-repair
 ```
 
-2. After reboot, finish the repair and reinstall the Howdy policy:
-
-```
-ujust selinux-repair-finish
-```
-
-This will relabel the SELinux store, rebuild modules, reinstall the `howdy_gdm` policy from the image, and verify it is loaded. It also checks that the `gdm` user is in the `video` group.
-
+This will relabel the SELinux store, rebuild modules, reinstall the `howdy_gdm` policy from the image, and verify it is loaded.
 
 ---
 

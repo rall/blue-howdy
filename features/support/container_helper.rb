@@ -2,8 +2,8 @@ module ContainerHelper
   attr_reader :test_image, :container, :base_image, :image_name
 
   def image_name(suffix = nil, local: false)
-    base = ENV["MATRIX_BASE"]
-    stream = ENV["MATRIX_STREAM"]
+    base = ENV["MATRIX_BASE"] || "bluefin"
+    stream = ENV["MATRIX_STREAM"] || "stable"
     suffix_string = suffix ? "-#{suffix}" : ""
     raise "unknown image" unless base && stream
     local_image = "#{base}#{suffix_string}:#{stream}"
