@@ -22,10 +22,6 @@ COPY systemd/howdy-selinux-install.service /usr/lib/systemd/system/howdy-selinux
 RUN ln -s ../howdy-selinux-install.service \
     /usr/lib/systemd/system/multi-user.target.wants/howdy-selinux-install.service
 
-# Ensure Gnome Display Manager in video group
-RUN install -Dm0644 /dev/null /usr/lib/sysusers.d/howdy-gdm.conf && \
-    printf 'm gdm video\n' > /usr/lib/sysusers.d/howdy-gdm.conf
-
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
