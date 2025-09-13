@@ -30,7 +30,6 @@ howdy-pam-add:
   GDM_PAM="${GDM_PAM:-/etc/pam.d/gdm-password}"
   SDDM_PAM="${SDDM_PAM:-/etc/pam.d/sddm}"
   HOWDY_LINE="${HOWDY_LINE:-auth sufficient pam_howdy.so}"
-
   has_gdm=0; [[ -f "$GDM_PAM"  ]] && has_gdm=1
   has_sddm=0; [[ -f "$SDDM_PAM" ]] && has_sddm=1
 
@@ -52,6 +51,8 @@ howdy-pam-add:
     just sudoif restorecon -v "$pam_file" || true
     rm -f "$tmp"
     echo "Inserted Howdy into $pam_file"
+    echo "Marking system for full SELinux relabel on next boot..."
+    systemctl start selinux-autorelabel-mark.service || echo "systemctl not available"
   }
 
   echo "!!! WARNING !!!"
@@ -68,9 +69,6 @@ howdy-pam-add:
       read -p "Add Howdy to login (SDDM: $SDDM_PAM)? [y/N]: " -n 1 -r; echo
       [[ $REPLY =~ ^[Yy]$ ]] && insert_pam "$SDDM_PAM" "SDDM"
     fi
-
-    echo "Marking system for full SELinux relabel on next boot..."
-    systemctl start selinux-autorelabel-mark.service
   fi
 
   if [[ -f /etc/pam.d/sudo ]]; then
