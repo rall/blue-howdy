@@ -16,6 +16,6 @@ ENV SELINUX=enforcing
 RUN groupadd -g ${LOGIN_GID} ${LOGIN_USER} \
  && useradd -m -u ${LOGIN_UID} -g ${LOGIN_GID} -s /bin/bash ${LOGIN_USER} \
  && echo "${LOGIN_USER}:${LOGIN_USER}" | chpasswd \
- && usermod -aG video,wheel ${LOGIN_USER}
+ && usermod -aG wheel ${LOGIN_USER}
 
 USER ${LOGIN_USER}
