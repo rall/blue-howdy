@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TE="/usr/share/selinux/howdy/howdy_gdm.te"
 WRK="/run/howdy"
-LOG_TAG="howdy-selinux-setup"
 
-log(){ logger -t "$LOG_TAG" -- "$*"; }
+log(){ logger -t "howdy-selinux-setup" -- "$*"; }
 
 # Resolve semodule path (prefer absolute), bail quietly if missing
 SEM="/usr/sbin/semodule"
@@ -26,7 +24,7 @@ if "$SEM" -l | awk '{print $1}' | grep -qx howdy_gdm; then
 fi
 
 install -d -m0755 "$WRK"
-cp -f "$TE" "$WRK/"
+cp -f "/usr/share/selinux/howdy/howdy_gdm.te" "$WRK/"
 
 # Prefer devel Makefile; else fall back to raw toolchain (module ver 21)
 if [ -f /usr/share/selinux/devel/Makefile ]; then
@@ -53,5 +51,4 @@ if command -v ausearch >/dev/null && command -v audit2allow >/dev/null; then
   fi
 fi
 
-# Done. No permissive fallback.
 exit 0

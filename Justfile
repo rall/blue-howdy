@@ -68,6 +68,9 @@ howdy-pam-add:
       read -p "Add Howdy to login (SDDM: $SDDM_PAM)? [y/N]: " -n 1 -r; echo
       [[ $REPLY =~ ^[Yy]$ ]] && insert_pam "$SDDM_PAM" "SDDM"
     fi
+
+    echo "Marking system for full SELinux relabel on next boot..."
+    systemctl start selinux-autorelabel-mark.service
   fi
 
   if [[ -f /etc/pam.d/sudo ]]; then
@@ -86,29 +89,7 @@ howdy-pam-add:
     fi
   fi
 
-  echo
   echo "Done. Now lock your session or switch user to test the greeter."
-
-# Restore most recent backups
-howdy-pam-revert:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "Restoring most recent PAM backups (if any)..."
-    latest_gdm="$(ls -1t {{GDM_PAM}}.bak.* 2>/dev/null | head -n1 || true)"
-    if [[ -n "${latest_gdm}" ]]; then
-        echo "Restoring ${latest_gdm} -> {{GDM_PAM}}"
-        just sudoif install -m 0644 "${latest_gdm}" "{{GDM_PAM}}"
-    else
-        echo "No backup found for {{GDM_PAM}}"
-    fi
-    latest_sudo="$(ls -1t /etc/pam.d/sudo.bak.* 2>/dev/null | head -n1 || true)"
-    if [[ -n "${latest_sudo}" ]]; then
-        echo "Restoring ${latest_sudo} -> /etc/pam.d/sudo"
-        just sudoif install -m 0644 "${latest_sudo}" /etc/pam.d/sudo
-    else
-        echo "No backup found for /etc/pam.d/sudo"
-    fi
-    echo "Done. You may run: sudo systemctl restart gdm or sddm"
 
 @howdy-camera-picker:
     #!/usr/bin/env bash
@@ -202,20 +183,7 @@ howdy-pam-revert:
 
 # ---------- SELinux repair & reinstall ----------
 
-@howdy-selinux-repair-start:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "Marking system for full SELinux relabel on next boot..."
-    if systemctl start selinux-autorelabel-mark.service 2>/dev/null; then
-        echo "Queued relabel via selinux-autorelabel-mark.service"
-    else
-        sudo touch /.autorelabel
-        echo "Created /.autorelabel"
-    fi
-    echo
-    echo "Now reboot. After reboot, run:  ujust howdy-selinux-repair-finish"
-
-@howdy-selinux-repair-finish:
+@howdy-selinux-repair:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -226,33 +194,10 @@ howdy-pam-revert:
     sudo semodule -B
 
     echo "[3/4] Reinstall Howdy policy from image source"
-    if [[ -x /usr/libexec/howdy-selinux-setup ]]; then
-        # If the systemd unit hasn’t been run (e.g. no systemd in container),
-        # run the setup script directly to compile and install howdy_gdm.te.
-        sudo /usr/libexec/howdy-selinux-setup
-    else
-        src="/usr/share/selinux/howdy/howdy_gdm.te"
-        [ -r "$src" ] || { echo "Missing $src"; exit 1; }
-        howdy_selinux="/var/lib/howdy-selinux"
-        sudo install -d -m 0755 "$howdy_selinux"
-        sudo checkmodule -M -m -o "$howdy_selinux/howdy_gdm.mod" "$src"
-        sudo semodule_package -o "$howdy_selinux/howdy_gdm.pp" -m "$howdy_selinux/howdy_gdm.mod"
-        sudo semodule -i "$howdy_selinux/howdy_gdm.pp"
-    fi
+    sudo /usr/libexec/howdy-selinux-setup
+    sudo semodule --install=howdy_gdm_auto.pp
 
     echo "[4/4] Verify module and basic access"
-    sudo semodule -l | grep -qi howdy_gdm || { echo "howdy_gdm still missing"; exit 1; }
+    sudo semodule -l | grep -qi howdy_gdm || { echo "howdy_gdm missing"; exit 1; }
 
-    # Add gdm to the video group if necessary, but don’t assume systemd is running.
-    if ! id gdm | grep -q 'video'; then
-        echo "Adding gdm to video group"
-        sudo gpasswd -a gdm video
-        if command -v systemctl >/dev/null && systemctl --quiet is-system-running; then
-            sudo systemctl restart gdm
-        else
-            echo "systemd not running; restart gdm manually if required"
-        fi
-    fi
-
-    ls -Z /dev/video* | sed -n '1,10p' || true
     echo "Done. Try: sudo -u gdm howdy test"
