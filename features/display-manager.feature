@@ -13,3 +13,9 @@ Feature: Use Howdy to authenticate with my face at login
       And I reboot
       Then the PAM config for the display manager should contain 'auth sufficient pam_howdy.so'
       And the PAM config for sudo should not contain 'auth sufficient pam_howdy.so'
+
+    Scenario: Revert PAM config
+      When I run 'ujust howdy-pam' to add howdy to login
+      And I reboot
+      And I run 'ujust howdy-pam' to remove howdy from login
+      Then the PAM config for the display manager should not contain 'auth sufficient pam_howdy.so'

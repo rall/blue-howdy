@@ -6,26 +6,24 @@ Given('I am logged in to a fresh blue-howdy image') do
 end
 
 When(/I run 'ujust howdy-pam' to (add howdy to|remove howdy from) (login|sudo)/) do |act, pam|
-  action = {
-    "add howdy to" => true,
-    "remove howdy from" => false
-  }[act]
-  
   answers = {
-    :"Add Howdy to login?" => (pam == "login" && action),
-    :"Remove Howdy from login?" => (pam == "login" && !action),
-    :"Add Howdy to sudo?" => (pam == "sudo" && action),
-    :"Remove Howdy from sudo?" => (pam == "sudo" && !action), 
+    :"Add Howdy to login?" => (pam == "login" && act == "add howdy to"),
+    :"Remove Howdy from login?" => (pam == "login" && act == "remove howdy from"),
+    :"Add Howdy to sudo?" => (pam == "sudo" && act == "add howdy to"),
+    :"Remove Howdy from sudo?" => (pam == "sudo" && act == "remove howdy from"), 
   }
   run_command(container.exec_cmd("ujust howdy-pam", interactive: true, root: true))
-  until last_command_started.output.include?("Done. Now lock your session or switch user to test the greeter.")
+  last_line = ""
+  until last_line.include?("Done. Now lock your session or switch user to test the greeter.")
     answers.each do |k, v|
-      if last_command_started.output.include?(k.to_s)
-        answers.delete(k)
+      if last_line.include?(k.to_s)
         last_command_started.write v ? "y" : "n"
       end
     end
     sleep 0.5
+    lines = last_command_started.output.split("\n")
+    last_line = lines.select { |line| !line.start_with?("Unable to create log dir")  }.last
+    puts last_line
   end
   last_command_started.write "exit"
   last_command_started.stop
