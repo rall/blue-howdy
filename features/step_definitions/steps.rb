@@ -3,6 +3,8 @@ require_relative "../support/container"
 
 Given('I am logged in to a fresh blue-howdy image') do
   container.start!
+  run_command_and_stop(container.exec_cmd("cat /etc/fedora-release"))
+  puts last_command_started.output
 end
 
 When(/I run 'ujust howdy-pam' to (add howdy to|remove howdy from) (login|sudo)/) do |act, pam|
@@ -62,8 +64,6 @@ Then('howdy must be installed') do
 end
 
 When('I reboot') do
-  run_command_and_stop(container.exec_cmd("cat /etc/fedora-release"))
-  puts last_command_started.output
   container.restart!
 end
 
