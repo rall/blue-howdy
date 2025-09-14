@@ -53,7 +53,7 @@ howdy-pam:
     echo "Relabel SELinux DB paths"
     sudo restorecon -RFv /etc/selinux /var/lib/selinux || true
     echo "Rebuild policy module store"
-    sudo semodule --build
+    sudo semodule --build || true
   }
 
   # Helper to remove Howdy from a PAM file
@@ -66,12 +66,6 @@ howdy-pam:
     just sudoif restorecon -v "$pam_file" || true
     rm -f "$tmp"
     echo "Removed Howdy from $pam_file"
-    if systemctl --quiet is-system-running; then
-      echo "Mark system for full SELinux relabel on next boot"
-      systemctl start selinux-autorelabel-mark.service || echo "systemctl not available"
-    fi
-    sudo restorecon -RFv /etc/selinux /var/lib/selinux || true
-    sudo semodule --build
   }
 
   echo "!!! WARNING !!!"
