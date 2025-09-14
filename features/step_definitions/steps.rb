@@ -5,22 +5,29 @@ Given('I am logged in to a fresh blue-howdy image') do
   container.start!
 end
 
-When(/I run 'ujust howdy-pam-add' (to|but don't) add howdy to (login|sudo)/) do |act, pam|
-  next if act == "but don't"
+When(/I run 'ujust howdy-pam' to (add howdy to|remove howdy from) (login|sudo)/) do |act, pam|
+  action = {
+    "add howdy to" => true,
+    "remove howdy from" => false
+  }[act]
+  
   answers = {
-    :"Add Howdy to login" => (pam == "login" ? "y" : "n"),
-    :"Add Howdy to sudo" => (pam == "sudo"  ? "y" : "n"),
-    :"Proceed?" => "y",
+    :"Add Howdy to login?" => (pam == "login" && action),
+    :"Remove Howdy from login?" => (pam == "login" && !action),
+    :"Add Howdy to sudo?" => (pam == "sudo" && action),
+    :"Remove Howdy from sudo?" => (pam == "sudo" && !action), 
   }
-  run_command(container.exec_cmd("ujust howdy-pam-add", interactive: true, root: true))
+  run_command(container.exec_cmd("ujust howdy-pam", interactive: true, root: true))
   until last_command_started.output.include?("Done. Now lock your session or switch user to test the greeter.")
     answers.each do |k, v|
       if last_command_started.output.include?(k.to_s)
-        last_command_started.write v
+        answers.delete(k)
+        last_command_started.write v ? "y" : "n"
       end
     end
     sleep 0.5
   end
+  last_command_started.write "exit"
   last_command_started.stop
 end
 
@@ -29,7 +36,11 @@ Then('the PAM config should be syntactically correct') do
   run_command_and_stop(container.exec_cmd("authselect check"), fail_on_error: true)
 end
 
-Then(/the PAM config for (the display manager|sudo) should contain '([^']+)'/) do |service_test, pam_line|
+Then(/the PAM config for (the display manager|sudo) (should not|should) contain '([^']+)'/) do |service_test, shd, pam_line|
+  should = {
+    "should" => true,
+    "should not" => false
+  }[shd]
   if service_test == "sudo" 
     service = service_test
   else
@@ -42,11 +53,11 @@ Then(/the PAM config for (the display manager|sudo) should contain '([^']+)'/) d
   end
   raise "Unknown service" unless service
   run_command_and_stop(container.exec_cmd("cat /etc/pam.d/#{service}"), fail_on_error: false)
-  raise "#{pam_line} not present in /etc/pam.d/#{service}" unless last_command_started.output.include?(pam_line)
-end
-
-Then(/I can run 'ujust (.*)'/) do |just_task|
-  run_command_and_stop(container.exec_cmd("ujust #{just_task}", root: true), fail_on_error: true)
+  if should
+    raise "#{pam_line} not present in /etc/pam.d/#{service}" unless last_command_started.output.include?(pam_line)
+  else
+    raise "#{pam_line} present in /etc/pam.d/#{service}" if last_command_started.output.include?(pam_line)
+  end
 end
 
 Then('howdy must be installed') do
@@ -56,3 +67,4 @@ end
 When('I reboot') do ||
   container.restart!
 end
+

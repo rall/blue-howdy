@@ -24,20 +24,13 @@ Bluefin images that enable **Howdy face login** out of the box, with **SELinux e
 ```
 sudo bootc switch ghcr.io/rall/bluefin-dx-nvidia-open-howdy:gts
 ```
-Other variants exist (`bluefin-howdy`, `bluefin-dx-howdy`, `bluefin-nvidia-howdy`) with `gts` or `latest` tags.
+
+Other variants exist (`bluefin-howdy`, `bluefin-dx-howdy`, `bluefin-nvidia-howdy`) with `gts` or `stable` tags.
 
 2. Configure PAM (adds Howdy to GDM or SDDM, optional prompt for sudo):
 
 ```
-ujust howdy-pam-add
-```
-
-If the greeter fails after changes:
-
-```
-Ctrl+Alt+F3
-ujust howdy-pam-revert
-sudo systemctl restart gdm or sddm
+ujust howdy-pam
 ```
 
 3. Pick the right camera interactively:
@@ -46,20 +39,7 @@ sudo systemctl restart gdm or sddm
 ujust howdy-camera-picker
 ```
 
-4. Lock the screen or switch user to test face login at the greeter.
-
-5. If login works with `sudo howdy test` but fails at the greeter, repair SELinux:
-
-```
-ujust howdy-selinux-repair-start
-sudo reboot
-```
-
-After reboot:
-
-```
-ujust selinux-repair-finish
-```
+4. Reboot.
 
 ---
 
@@ -69,24 +49,10 @@ This repo adds Justfile tasks for configuring PAM, selecting the Howdy camera, a
 
 ### PAM helpers
 
-- Add Howdy to the login greeter (GDM or SDDM) and / or sudo:
+- Add or remove Howdy to/from the login greeter (GDM or SDDM) and/or sudo:
 
 ```
-ujust howdy-pam-add
-```
-
-- Revert PAM files to the most recent backups:
-
-```
-ujust howdy-pam-revert
-```
-
-Every `howdy-pam-add` run makes timestamped backups of the PAM file(s). If the greeter fails:
-
-```
-Ctrl+Alt+F3
-ujust howdy-pam-revert
-sudo systemctl restart gdm or sddm
+ujust howdy-pam
 ```
 
 **<span style="color:red">To avoid potential lock-out, make sure you verify the changes made to your pam.d config before rebooting</span>**
@@ -100,16 +66,6 @@ ujust howdy-camera-picker
 ```
 
 The task will run `sudo howdy test` against each camera node, skip devices that fail, let you keep one or more, and auto-select if only one works.
-
-### SELinux repair
-
-If the SELinux module store gets corrupted (e.g. AVCs show `{ map }` denials for `/dev/video*`), repair and reinstall the Howdy policy:
-
-```
-ujust howdy-selinux-repair
-```
-
-This will relabel the SELinux store, rebuild modules, reinstall the `howdy_gdm` policy from the image, and verify it is loaded.
 
 ---
 
@@ -135,8 +91,6 @@ sudo bootc switch localhost/blue-howdy:gts
 
 ## Troubleshooting
 
-- **Howdy works for sudo but not at the greeter**: it's possible your SELinux policy module store is corrupted. See **SELinux repair,** above
-
-- **Howdy prompts missing**: run `just howdy-pam-add` to (re)insert PAM lines; it will no-op if they’re already present.
+- **Howdy prompts missing**: run `just howdy-pam` to (re)insert PAM lines; it will no-op if they’re already present.
 
 - **Howdy unlocks my session, but I still have to enter my password to unlock the login keyring**: This is expected — PAM doesn't have your password so it can't pass it along to the GNOME Keyring. You could avoid this by blanking the keyring password with [Seahorse](https://wiki.gnome.org/Apps/Seahorse)
