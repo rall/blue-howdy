@@ -61,7 +61,9 @@ Then('howdy must be installed') do
   run_command_and_stop(container.exec_cmd("howdy -h"), fail_on_error: true)
 end
 
-When('I reboot') do ||
+When('I reboot') do
+  run_command_and_stop(container.exec_cmd("cat /etc/fedora-release"))
+  puts last_command_started.output
   container.restart!
 end
 
