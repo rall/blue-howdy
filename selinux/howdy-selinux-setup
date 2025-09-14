@@ -42,7 +42,7 @@ if "$SEM" -i "$WRK/howdy_gdm.pp" 2>/dev/null; then
   exit 0
 fi
 
-# Optional: AVC-derived module (still enforcing; no permissive)
+# Optional: AVC-derived module
 if command -v ausearch >/dev/null && command -v audit2allow >/dev/null; then
   (ausearch -m avc -ts boot || ausearch -m avc -ts recent) > "$WRK/howdy.avc" || true
   if [ -s "$WRK/howdy.avc" ]; then
