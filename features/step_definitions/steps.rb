@@ -15,9 +15,11 @@ When(/I run 'ujust howdy-pam' to (add howdy to|remove howdy from) (login|sudo)/)
     :"Add Howdy to sudo?" => (pam == "sudo" && act == "add howdy to"),
     :"Remove Howdy from sudo?" => (pam == "sudo" && act == "remove howdy from"), 
   }
-  run_command(container.exec_cmd("ujust howdy-pam", interactive: true, root: true), io_wait_timeout: 10)
+  run_command(container.exec_cmd("ujust howdy-pam", interactive: true, root: true, debug: true), io_wait_timeout: 10)
   last_line = ""
-  until last_command_started.output.include?("Done. Now lock your session or switch user to test the greeter.")
+  start_time = Time.now
+  until last_command_started.output.include?("Done. Now lock your session or switch user to test the greeter.") || Time.now - start_time > 60
+    puts last_command_started.output
     answers.each do |k, v|
       if last_line.include?(k.to_s)
         last_command_started.write v ? "y" : "n"
