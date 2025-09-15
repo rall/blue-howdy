@@ -4,6 +4,7 @@ require_relative "../support/container"
 Given('I am logged in to a fresh blue-howdy image') do
   container.start!
   run_command_and_stop(container.exec_cmd("cat /etc/fedora-release"))
+  puts image_name
   puts last_command_started.output
 end
 
@@ -14,9 +15,9 @@ When(/I run 'ujust howdy-pam' to (add howdy to|remove howdy from) (login|sudo)/)
     :"Add Howdy to sudo?" => (pam == "sudo" && act == "add howdy to"),
     :"Remove Howdy from sudo?" => (pam == "sudo" && act == "remove howdy from"), 
   }
-  run_command(container.exec_cmd("ujust howdy-pam", interactive: true, root: true), exit_timeout: 10)
+  run_command(container.exec_cmd("ujust howdy-pam", interactive: true, root: true), io_wait_timeout: 10)
   last_line = ""
-  until last_line.include?("Done. Now lock your session or switch user to test the greeter.")
+  until last_command_started.output.include?("Done. Now lock your session or switch user to test the greeter.")
     answers.each do |k, v|
       if last_line.include?(k.to_s)
         last_command_started.write v ? "y" : "n"
