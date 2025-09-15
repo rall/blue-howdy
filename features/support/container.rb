@@ -119,9 +119,9 @@ class Container < Runtime
     flags = []
     flags << "--interactive" if interactive
     flags << "--user=0" if root
-    localenv = 'env -i TERM=xterm-256color'      
+    env_command = 'env -i TERM=xterm-256color STARSHIP_CACHE=/tmp'      
     debug_engine = debug ? "#{engine} --log-level=debug" : engine
-    "#{debug_engine} exec #{flags.join(' ')} #{@id} #{localenv} bash -lc '#{cmd}'".squeeze(' ').tap do |full|
+    "#{debug_engine} exec #{flags.join(' ')} #{@id} #{env_command} bash -lc '#{cmd}'".squeeze(' ').tap do |full|
       STDERR.puts("EXEC: #{full}") if debug
     end
   end

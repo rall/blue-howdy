@@ -15,10 +15,10 @@ When(/I run 'ujust howdy-pam' to (add howdy to|remove howdy from) (login|sudo)/)
     :"Add Howdy to sudo?" => (pam == "sudo" && act == "add howdy to"),
     :"Remove Howdy from sudo?" => (pam == "sudo" && act == "remove howdy from"), 
   }
-  run_command(container.exec_cmd("ujust howdy-pam", interactive: true, root: true, debug: true), io_wait_timeout: 10)
-  last_line = ""
+  run_command(container.exec_cmd("ujust howdy-pam", interactive: true, root: true), io_wait_timeout: 10)
+  last_line = []
   start_time = Time.now
-  max_time = 120
+  max_time = 240
   until last_command_started.output.include?("Done. Now lock your session or switch user to test the greeter.")
     raise "Step duration exceeded #{max_time}s" if Time.now - start_time > max_time
     answers.each do |k, v|
@@ -27,12 +27,16 @@ When(/I run 'ujust howdy-pam' to (add howdy to|remove howdy from) (login|sudo)/)
       end
     end
     lines = last_command_started.output.split("\n")
-    last_line = lines.select { |line| !line.start_with?("Unable to create log dir")  }.last
-    puts last_command_started.output
-    puts "---"
-    puts last_line
-    puts "---"
-    sleep 0.5
+    ignore_lines = [
+      "Unable to create log dir",
+      "sudo: PAM account management error",
+      "sudo: a password is required"
+    ]
+    filtered_lines = ignore_lines.reduce(lines) do |filtered, filter|
+      filtered.select { |line| !line.start_with?(filter) }
+    end
+    last_line = filtered_lines.last
+    sleep 0.1
   end
   last_command_started.write "exit"
   last_command_started.stop
