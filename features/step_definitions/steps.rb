@@ -18,16 +18,21 @@ When(/I run 'ujust howdy-pam' to (add howdy to|remove howdy from) (login|sudo)/)
   run_command(container.exec_cmd("ujust howdy-pam", interactive: true, root: true, debug: true), io_wait_timeout: 10)
   last_line = ""
   start_time = Time.now
-  until last_command_started.output.include?("Done. Now lock your session or switch user to test the greeter.") || Time.now - start_time > 60
-    puts last_command_started.output
+  max_time = 120
+  until last_command_started.output.include?("Done. Now lock your session or switch user to test the greeter.")
+    raise "Step duration exceeded #{max_time}s" if Time.now - start_time > max_time
     answers.each do |k, v|
       if last_line.include?(k.to_s)
         last_command_started.write v ? "y" : "n"
       end
     end
-    sleep 0.5
     lines = last_command_started.output.split("\n")
     last_line = lines.select { |line| !line.start_with?("Unable to create log dir")  }.last
+    puts last_command_started.output
+    puts "---"
+    puts last_line
+    puts "---"
+    sleep 0.5
   end
   last_command_started.write "exit"
   last_command_started.stop
