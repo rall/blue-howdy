@@ -33,6 +33,8 @@ Other variants exist (`bluefin-howdy`, `bluefin-dx-howdy`, `bluefin-nvidia-howdy
 ujust howdy-pam
 ```
 
+After the helper finishes, review the PAM files it manages—`/etc/pam.d/gdm-password` or `/etc/pam.d/sddm` (whichever display manager you chose) and `/etc/pam.d/sudo` if you opted into sudo prompts; these are the only PAM configs the helper ever modifies—to make sure the Howdy line looks right before you reboot. It will quietly skip whichever of those files you left disabled or are missing on your system.
+
 3. Pick the right camera interactively:
 
 ```
@@ -56,6 +58,89 @@ ujust howdy-pam
 ```
 
 **<span style="color:red">To avoid potential lock-out, make sure you verify the changes made to your pam.d config before rebooting</span>**
+
+After `ujust howdy-pam` runs, inspect each PAM file you enabled to confirm the helper inserted (or removed) `auth sufficient pam_howdy.so` in the right place. The helper only ever works with these hardcoded paths—picking either the GDM or SDDM config based on your selection and touching `/etc/pam.d/sudo` only if you enabled sudo integration—skipping any that are disabled or missing:
+
+- `/etc/pam.d/gdm-password` (GDM login; sometimes referenced as `/etc/pam.d/gdp-password`)
+- `/etc/pam.d/sddm` (SDDM login)
+- `/etc/pam.d/sudo` (sudo prompts)
+
+#### Example PAM edits
+
+The snippets below show what the Howdy line looks like before and after the helper runs. Distributions can vary slightly, so treat these as guides and make sure your files match the "after" pattern where relevant. If you later re-run the helper and decline one of the prompts, it will remove the Howdy line to restore the "before" state.
+
+**/etc/pam.d/gdm-password** (GDM login; sometimes documented as `/etc/pam.d/gdp-password`)
+
+Before:
+
+```
+#%PAM-1.0
+auth     [success=done ignore=ignore default=bad] pam_selinux_permit.so
+auth     requisite      pam_nologin.so
+auth     required       pam_env.so
+auth     substack       password-auth
+auth     optional       pam_gnome_keyring.so
+...
+```
+
+After:
+
+```
+#%PAM-1.0
+auth     [success=done ignore=ignore default=bad] pam_selinux_permit.so
+auth sufficient pam_howdy.so
+auth     requisite      pam_nologin.so
+auth     required       pam_env.so
+auth     substack       password-auth
+auth     optional       pam_gnome_keyring.so
+...
+```
+
+**/etc/pam.d/sddm**
+
+Before:
+
+```
+#%PAM-1.0
+auth     include        system-login
+auth     optional       pam_kwallet5.so
+auth     optional       pam_gnome_keyring.so
+...
+```
+
+After:
+
+```
+#%PAM-1.0
+auth sufficient pam_howdy.so
+auth     include        system-login
+auth     optional       pam_kwallet5.so
+auth     optional       pam_gnome_keyring.so
+...
+```
+
+**/etc/pam.d/sudo**
+
+Before:
+
+```
+#%PAM-1.0
+auth       include      system-auth
+account    include      system-auth
+password   include      system-auth
+session    include      system-auth
+```
+
+After:
+
+```
+#%PAM-1.0
+auth sufficient pam_howdy.so
+auth       include      system-auth
+account    include      system-auth
+password   include      system-auth
+session    include      system-auth
+```
 
 ### Camera helpers
 
