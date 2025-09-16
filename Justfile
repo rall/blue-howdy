@@ -23,7 +23,7 @@ SDDM_PAM := "/etc/pam.d/sddm"
 HOWDY_LINE := "auth sufficient pam_howdy.so"
 
 # Add Howdy to GDM, SDDM and/or sudo; interactive + idempotent
-howdy-pam-add:
+howdy-pam:
   #!/usr/bin/env bash
   set -euo pipefail
 
@@ -35,11 +35,6 @@ howdy-pam-add:
 
   insert_pam() {
     local pam_file="$1" label="$2"
-    [[ -f "$pam_file" ]] || { echo "Note: $pam_file not found; skipping $label."; return 0; }
-    if grep -q 'pam_howdy\.so' "$pam_file"; then
-      echo "Howdy already present in $pam_file; skipping."
-      return 0
-    fi
     just sudoif cp -a "$pam_file" "$pam_file.bak.$(date +%s)"
     tmp="$(mktemp)"
     if grep -q 'pam_selinux_permit\.so' "$pam_file"; then
@@ -51,32 +46,68 @@ howdy-pam-add:
     just sudoif restorecon -v "$pam_file" || true
     rm -f "$tmp"
     echo "Inserted Howdy into $pam_file"
-    echo "Marking system for full SELinux relabel on next boot..."
-    systemctl start selinux-autorelabel-mark.service || echo "systemctl not available"
+    if systemctl --quiet is-system-running; then
+      echo "Mark system for full SELinux relabel on next boot"
+      systemctl start selinux-autorelabel-mark.service || echo "systemctl not available"
+    fi
+    echo "Relabel SELinux DB paths"
+    sudo restorecon -RFv /etc/selinux /var/lib/selinux || true
+    echo "Rebuild policy module store"
+    sudo semodule --build || true
+  }
+
+  # Helper to remove Howdy from a PAM file
+  remove_pam() {
+    local pam_file="$1" label="$2"
+    just sudoif cp -a "$pam_file" "$pam_file.bak.$(date +%s)"
+    tmp="$(mktemp)"
+    awk '!/pam_howdy\.so/' "$pam_file" > "$tmp"
+    just sudoif install -m 0644 "$tmp" "$pam_file"
+    just sudoif restorecon -v "$pam_file" || true
+    rm -f "$tmp"
+    echo "Removed Howdy from $pam_file"
   }
 
   echo "!!! WARNING !!!"
   echo "This modifies PAM. Test the greeter BEFORE rebooting."
-  echo "If the greeter fails: Ctrl+Alt+F3 -> login -> 'ujust howdy-pam-revert' -> restart gdm/sddm"
-  printf "Proceed? [y/N]: " && read -n 1 -r; echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    if [[ $has_gdm -eq 1 ]]; then
-      read -p "Add Howdy to login (GDM: $GDM_PAM)? [y/N]: " -n 1 -r; echo
+  # GDM
+
+  if [[ -f "$GDM_PAM" ]]; then
+    if grep -q 'pam_howdy\.so' "$GDM_PAM"; then
+      printf "Remove Howdy from login? (GDM: $GDM_PAM) [y/N]: " && read -n 1 -r; echo
+      [[ $REPLY =~ ^[Yy]$ ]] && remove_pam "$GDM_PAM" "GDM"
+    else
+      printf "Add Howdy to login? (GDM: $GDM_PAM) [y/N]: " && read -n 1 -r; echo
       [[ $REPLY =~ ^[Yy]$ ]] && insert_pam "$GDM_PAM" "GDM"
     fi
+  fi
 
-    if [[ $has_sddm -eq 1 ]]; then
-      read -p "Add Howdy to login (SDDM: $SDDM_PAM)? [y/N]: " -n 1 -r; echo
+  # SDDM
+  if [[ -f "$SDDM_PAM" ]]; then
+    if grep -q 'pam_howdy\.so' "$SDDM_PAM"; then
+      printf "Remove Howdy from login? (SDDM: $SDDM_PAM) [y/N]: " && read -n 1 -r; echo
+      [[ $REPLY =~ ^[Yy]$ ]] && remove_pam "$SDDM_PAM" "SDDM"
+    else
+      printf "Add Howdy to login? (SDDM: $SDDM_PAM) [y/N]: " && read -n 1 -r; echo
       [[ $REPLY =~ ^[Yy]$ ]] && insert_pam "$SDDM_PAM" "SDDM"
     fi
   fi
 
+  # sudo PAM file
   if [[ -f /etc/pam.d/sudo ]]; then
-    read -p "Add Howdy to sudo (/etc/pam.d/sudo)? [y/N]: " -n 1 -r; echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-      if grep -q 'pam_howdy\.so' /etc/pam.d/sudo; then
-        echo "Howdy already present in /etc/pam.d/sudo; skipping."
-      else
+    if grep -q 'pam_howdy\.so' /etc/pam.d/sudo; then
+      printf "Remove Howdy from sudo? (/etc/pam.d/sudo) [y/N]: " && read -n 1 -r; echo
+      if [[ $REPLY =~ ^[Yy]$ ]]; then
+        just sudoif cp -a /etc/pam.d/sudo "/etc/pam.d/sudo.bak.$(date +%s)"
+        awk '!/pam_howdy\.so/' /etc/pam.d/sudo > /tmp/sudo.new
+        just sudoif install -m 0644 /tmp/sudo.new /etc/pam.d/sudo
+        just sudoif restorecon -v /etc/pam.d/sudo || true
+        rm -f /tmp/sudo.new
+        echo "Removed Howdy from /etc/pam.d/sudo"
+      fi
+    else
+      printf "Add Howdy to sudo? (/etc/pam.d/sudo) [y/N]: " && read -n 1 -r; echo
+      if [[ $REPLY =~ ^[Yy]$ ]]; then
         just sudoif cp -a /etc/pam.d/sudo "/etc/pam.d/sudo.bak.$(date +%s)"
         awk -v ins="$HOWDY_LINE" 'NR==1 && $0 ~ /^#%PAM-1\.0/ { print; print ins; next } { print }' /etc/pam.d/sudo > /tmp/sudo.new
         just sudoif install -m 0644 /tmp/sudo.new /etc/pam.d/sudo
@@ -86,7 +117,6 @@ howdy-pam-add:
       fi
     fi
   fi
-
   echo "Done. Now lock your session or switch user to test the greeter."
 
 @howdy-camera-picker:
@@ -192,24 +222,3 @@ howdy-pam-add:
             fi
             ;;
     esac
-
-# ---------- SELinux repair & reinstall ----------
-
-@howdy-selinux-repair:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    echo "[1/4] Relabel SELinux DB paths (post-reboot hygiene)"
-    sudo restorecon -RFv /etc/selinux /var/lib/selinux || true
-
-    echo "[2/4] Rebuild policy module store"
-    sudo semodule -B
-
-    echo "[3/4] Reinstall Howdy policy from image source"
-    sudo /usr/libexec/howdy-selinux-setup
-    sudo semodule --install=howdy_gdm_auto.pp
-
-    echo "[4/4] Verify module and basic access"
-    sudo semodule -l | grep -qi howdy_gdm || { echo "howdy_gdm missing"; exit 1; }
-
-    echo "Done. Try: sudo -u gdm howdy test"

@@ -3,7 +3,7 @@ module ContainerHelper
 
   def image_name(suffix = nil, local: false)
     base = ENV["MATRIX_BASE"] || "bluefin"
-    stream = ENV["MATRIX_STREAM"] || "stable"
+    stream = ENV["MATRIX_STREAM"] || "gts"
     suffix_string = suffix ? "-#{suffix}" : ""
     raise "unknown image" unless base && stream
     local_image = "#{base}#{suffix_string}:#{stream}"

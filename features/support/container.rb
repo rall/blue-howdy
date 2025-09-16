@@ -58,20 +58,23 @@ class Image < Runtime
   attr_reader :tag
 
   # Initialize with the base image string to pass to the overlay build
-  def initialize(name, base: nil)
-    @tag = "#{name}-#{SecureRandom.uuid}"
-    @base = base
+  def initialize(name)
+    @tag = name
   end
 
   # Build exactly the Dockerfile given. If @base is set, pass it as BASE_IMAGE.
   # Tags the result with a unique, local name and returns a Container bound to it.
-  def build!(dockerfile)
-    opts = ["--tag=#{@tag}", "--pull=false"]
+  def build!(dockerfile, base: nil, pull: false, debug: false)
+    opts = ["--tag=#{@tag}"]
+    opts << "--pull=#{pull}"
     opts << "--file=#{dockerfile}" if docker?
-    opts << "--build-arg=BASE_IMAGE=#{@base}" if @base
+    opts << "--build-arg=BASE_IMAGE=#{base}" if base
+    opts << "--progress=plain" if debug
     opts << "." if docker?
     opts << File.dirname(File.absolute_path(dockerfile)) if podman?
-    output, status = Open3.capture2e(env, engine, "build", *opts) 
+    output, status = Open3.capture2e(env, engine, "build", *opts).tap do |full|
+      puts full if debug
+    end
     raise "Build failed: #{output}" unless status.success?
     Container.new(self)
   end
@@ -116,9 +119,9 @@ class Container < Runtime
     flags = []
     flags << "--interactive" if interactive
     flags << "--user=0" if root
-    localenv = 'env -i TERM=xterm-256color'      
+    env_command = 'env -i TERM=xterm-256color STARSHIP_CACHE=/tmp'      
     debug_engine = debug ? "#{engine} --log-level=debug" : engine
-    "#{debug_engine} exec #{flags.join(' ')} #{@id} #{localenv} bash -lc '#{cmd}'".squeeze(' ').tap do |full|
+    "#{debug_engine} exec #{flags.join(' ')} #{@id} #{env_command} bash -lc '#{cmd}'".squeeze(' ').tap do |full|
       STDERR.puts("EXEC: #{full}") if debug
     end
   end

@@ -3,24 +3,42 @@ require_relative "../support/container"
 
 Given('I am logged in to a fresh blue-howdy image') do
   container.start!
+  run_command_and_stop(container.exec_cmd("cat /etc/fedora-release"))
+  puts image_name
+  puts last_command_started.output
 end
 
-When(/I run 'ujust howdy-pam-add' (to|but don't) add howdy to (login|sudo)/) do |act, pam|
-  next if act == "but don't"
+When(/I run 'ujust howdy-pam' to (add howdy to|remove howdy from) (login|sudo)/) do |act, pam|
   answers = {
-    :"Add Howdy to login" => (pam == "login" ? "y" : "n"),
-    :"Add Howdy to sudo" => (pam == "sudo"  ? "y" : "n"),
-    :"Proceed?" => "y",
+    :"Add Howdy to login?" => (pam == "login" && act == "add howdy to"),
+    :"Remove Howdy from login?" => (pam == "login" && act == "remove howdy from"),
+    :"Add Howdy to sudo?" => (pam == "sudo" && act == "add howdy to"),
+    :"Remove Howdy from sudo?" => (pam == "sudo" && act == "remove howdy from"), 
   }
-  run_command(container.exec_cmd("ujust howdy-pam-add", interactive: true, root: true))
+  run_command(container.exec_cmd("ujust howdy-pam", interactive: true, root: true), io_wait_timeout: 10)
+  last_line = []
+  start_time = Time.now
+  max_time = 240
   until last_command_started.output.include?("Done. Now lock your session or switch user to test the greeter.")
+    raise "Step duration exceeded #{max_time}s" if Time.now - start_time > max_time
     answers.each do |k, v|
-      if last_command_started.output.include?(k.to_s)
-        last_command_started.write v
+      if last_line.include?(k.to_s)
+        last_command_started.write v ? "y" : "n"
       end
     end
-    sleep 0.5
+    lines = last_command_started.output.split("\n")
+    ignore_lines = [
+      "Unable to create log dir",
+      "sudo: PAM account management error",
+      "sudo: a password is required"
+    ]
+    filtered_lines = ignore_lines.reduce(lines) do |filtered, filter|
+      filtered.select { |line| !line.start_with?(filter) }
+    end
+    last_line = filtered_lines.last
+    sleep 0.1
   end
+  last_command_started.write "exit"
   last_command_started.stop
 end
 
@@ -29,7 +47,11 @@ Then('the PAM config should be syntactically correct') do
   run_command_and_stop(container.exec_cmd("authselect check"), fail_on_error: true)
 end
 
-Then(/the PAM config for (the display manager|sudo) should contain '([^']+)'/) do |service_test, pam_line|
+Then(/the PAM config for (the display manager|sudo) (should not|should) contain '([^']+)'/) do |service_test, shd, pam_line|
+  should = {
+    "should" => true,
+    "should not" => false
+  }[shd]
   if service_test == "sudo" 
     service = service_test
   else
@@ -42,17 +64,18 @@ Then(/the PAM config for (the display manager|sudo) should contain '([^']+)'/) d
   end
   raise "Unknown service" unless service
   run_command_and_stop(container.exec_cmd("cat /etc/pam.d/#{service}"), fail_on_error: false)
-  raise "#{pam_line} not present in /etc/pam.d/#{service}" unless last_command_started.output.include?(pam_line)
-end
-
-Then(/I can run 'ujust (.*)'/) do |just_task|
-  run_command(container.exec_cmd("ujust #{just_task}", interactive: true), fail_on_error: true, exit_timeout: 10)
+  if should
+    raise "#{pam_line} not present in /etc/pam.d/#{service}" unless last_command_started.output.include?(pam_line)
+  else
+    raise "#{pam_line} present in /etc/pam.d/#{service}" if last_command_started.output.include?(pam_line)
+  end
 end
 
 Then('howdy must be installed') do
   run_command_and_stop(container.exec_cmd("howdy -h"), fail_on_error: true)
 end
 
-When('I reboot') do ||
+When('I reboot') do
   container.restart!
 end
+
