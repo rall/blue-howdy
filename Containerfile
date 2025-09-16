@@ -17,7 +17,7 @@ RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy \
 
 COPY selinux/howdy-selinux-setup /usr/libexec/howdy-selinux-setup
 RUN chmod 0755 /usr/libexec/howdy-selinux-setup
-COPY selinux/howdy_gdm.te /usr/share/selinux/howdy/howdy_gdm.te
+COPY selinux/howdy_dm.te /usr/share/selinux/howdy/howdy_dm.te
 COPY systemd/howdy-selinux-install.service /usr/lib/systemd/system/howdy-selinux-install.service
 RUN ln -s ../howdy-selinux-install.service \
     /usr/lib/systemd/system/multi-user.target.wants/howdy-selinux-install.service
