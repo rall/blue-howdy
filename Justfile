@@ -23,7 +23,7 @@ SDDM_PAM := "/etc/pam.d/sddm"
 HOWDY_LINE := "auth sufficient pam_howdy.so"
 
 # Add Howdy to GDM, SDDM and/or sudo; interactive + idempotent
-howdy-pam-add:
+howdy-pam:
   #!/usr/bin/env bash
   set -euo pipefail
 

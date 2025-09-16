@@ -29,7 +29,7 @@ Other variants exist (`bluefin-howdy`, `bluefin-dx-howdy`, `bluefin-nvidia-howdy
 2. Configure PAM (adds Howdy to GDM or SDDM, optional prompt for sudo):
 
 ```
-ujust howdy-pam-add
+ujust howdy-pam
 ```
 
 If the greeter fails after changes:
@@ -72,7 +72,7 @@ This repo adds Justfile tasks for configuring PAM, selecting the Howdy camera, a
 - Add Howdy to the login greeter (GDM or SDDM) and / or sudo:
 
 ```
-ujust howdy-pam-add
+ujust howdy-pam
 ```
 
 - Revert PAM files to the most recent backups:
@@ -81,7 +81,7 @@ ujust howdy-pam-add
 ujust howdy-pam-revert
 ```
 
-Every `howdy-pam-add` run makes timestamped backups of the PAM file(s). If the greeter fails:
+Every `howdy-pam` run makes timestamped backups of the PAM file(s). If the greeter fails:
 
 ```
 Ctrl+Alt+F3
@@ -144,6 +144,6 @@ sudo bootc switch localhost/blue-howdy:gts
 
 - **Howdy works for sudo but not at the greeter**: it's possible your SELinux policy module store is corrupted. See **SELinux repair,** above
 
-- **Howdy prompts missing**: run `just howdy-pam-add` to (re)insert PAM lines; it will no-op if they’re already present.
+- **Howdy prompts missing**: run `just howdy-pam` to (re)insert PAM lines; it will no-op if they’re already present.
 
 - **Howdy unlocks my session, but I still have to enter my password to unlock the login keyring**: This is expected — PAM doesn't have your password so it can't pass it along to the GNOME Keyring. You could avoid this by blanking the keyring password with [Seahorse](https://wiki.gnome.org/Apps/Seahorse)
