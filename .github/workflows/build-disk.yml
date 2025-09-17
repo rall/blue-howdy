@@ -48,7 +48,7 @@ jobs:
       id-token: write
 
     env:
-      IMAGE_NAME: ${{ matrix.base }}-howdy
+      IMAGE_NAME: ${{ matrix.base }}
       IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
       DEFAULT_TAG: ${{ matrix.stream }}
       BIB_IMAGE: ghcr.io/lorbuschris/bootc-image-builder:20250608
