@@ -77,5 +77,5 @@ end
 
 When('I reboot') do
   container.restart!
-  run_command_and_stop(container.exec_cmd("sudo /usr/libexec/howdy-selinux-setup", root: true), fail_on_error: true)
+  run_command_and_stop(container.exec_cmd("/usr/libexec/howdy-selinux-setup", root: true), fail_on_error: true)
 end
