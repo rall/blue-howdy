@@ -85,6 +85,9 @@ jobs:
           echo "USER_UID=$(id -u)" >> "$GITHUB_ENV"
           echo "USER_GID=$(id -g)" >> "$GITHUB_ENV"
 
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+
       - name: Maximize build space (x64 only)
         if: runner.arch == 'X64'
         uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e
