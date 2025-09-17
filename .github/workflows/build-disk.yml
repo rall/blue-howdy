@@ -23,23 +23,23 @@ jobs:
       matrix:
         disk-type: [qcow2, anaconda-iso]
         base:
-          - bazzite
-          - bazzite-dx
-          - bazzite-dx-nvidia
-          - bazzite-dx-nvidia-gnome
-          - bluefin
-          - bluefin-dx
-          - bluefin-nvidia
-          - bluefin-dx-nvidia-open
+          - bazzite-howdy
+          - bazzite-dx-howdy
+          - bazzite-dx-nvidia-howdy
+          - bazzite-dx-nvidia-gnome-howdy
+          - bluefin-howdy
+          - bluefin-dx-howdy
+          - bluefin-nvidia-howdy
+          - bluefin-dx-nvidia-open-howdy
         stream: [gts, stable]
         exclude:
-          - base: bazzite
+          - base: bazzite-howdy
             stream: gts
-          - base: bazzite-dx
+          - base: bazzite-dx-howdy
             stream: gts
-          - base: bazzite-dx-nvidia
+          - base: bazzite-dx-nvidia-howdy
             stream: gts
-          - base: bazzite-dx-nvidia-gnome
+          - base: bazzite-dx-nvidia-gnome-howdy
             stream: gts
 
     permissions:
