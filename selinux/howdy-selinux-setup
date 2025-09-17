@@ -19,25 +19,25 @@ if ! sestatus >/dev/null 2>&1 || ! sestatus 2>/dev/null | grep -q 'enabled'; the
 fi
 
 # Exit if already installed
-if "$SEM" -l | awk '{print $1}' | grep -qx howdy_gdm; then
+if "$SEM" -l | awk '{print $1}' | grep -qx howdy_dm; then
   exit 0
 fi
 
 install -d -m0755 "$WRK"
-cp -f "/usr/share/selinux/howdy/howdy_gdm.te" "$WRK/"
+cp -f "/usr/share/selinux/howdy/howdy_dm.te" "$WRK/"
 
 # Prefer devel Makefile; else fall back to raw toolchain (module ver 21)
 if [ -f /usr/share/selinux/devel/Makefile ]; then
   log "building via devel Makefile"
-  make -s -f /usr/share/selinux/devel/Makefile -C "$WRK" howdy_gdm.pp
+  make -s -f /usr/share/selinux/devel/Makefile -C "$WRK" howdy_dm.pp
 else
   log "building via checkmodule/semodule_package (c=21)"
-  checkmodule -M -m -c 21 -o "$WRK/howdy_gdm.mod" "$WRK/howdy_gdm.te"
-  semodule_package -o "$WRK/howdy_gdm.pp" -m "$WRK/howdy_gdm.mod"
+  checkmodule -M -m -c 21 -o "$WRK/howdy_dm.mod" "$WRK/howdy_dm.te"
+  semodule_package -o "$WRK/howdy_dm.pp" -m "$WRK/howdy_dm.mod"
 fi
 
 # Try to install the compiled module
-if "$SEM" -i "$WRK/howdy_gdm.pp" 2>/dev/null; then
+if "$SEM" -i "$WRK/howdy_dm.pp" 2>/dev/null; then
   log "installed TE module"
   exit 0
 fi
@@ -47,7 +47,7 @@ if command -v ausearch >/dev/null && command -v audit2allow >/dev/null; then
   (ausearch -m avc -ts boot || ausearch -m avc -ts recent) > "$WRK/howdy.avc" || true
   if [ -s "$WRK/howdy.avc" ]; then
     log "installing AVC-derived module"
-    audit2allow -M howdy_gdm_auto -i "$WRK/howdy.avc" && "$SEM" -X 400 -i howdy_gdm_auto.pp || true
+    audit2allow -M howdy_dm_auto -i "$WRK/howdy.avc" && "$SEM" -X 400 -i howdy_dm_auto.pp || true
   fi
 fi
 
