@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     libgmp-dev \
     buildah \
     wget \
+    gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Ruby from source
