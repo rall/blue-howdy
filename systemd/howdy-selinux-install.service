@@ -8,6 +8,7 @@ RequiresMountsFor=/etc/selinux /var/lib/selinux
 [Service]
 Type=oneshot
 ExecStart=/usr/libexec/howdy-selinux-setup
+AmbientCapabilities=CAP_MAC_ADMIN
 RemainAfterExit=yes
 
 [Install]
