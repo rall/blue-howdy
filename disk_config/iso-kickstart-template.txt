@@ -1,0 +1,5 @@
+contents = """
+%post
+bootc switch --mutate-in-place --transport registry ghcr.io/rall/${IMAGE_NAME}:${IMAGE_VERSION}
+%end
+"""

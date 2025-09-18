@@ -50,7 +50,7 @@ jobs:
     env:
       IMAGE_NAME: ${{ matrix.base }}
       IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
-      DEFAULT_TAG: ${{ matrix.stream }}
+      IMAGE_VERSION: ${{ matrix.stream }}
       BIB_IMAGE: ghcr.io/lorbuschris/bootc-image-builder:20250608
 
     steps:
@@ -76,10 +76,15 @@ jobs:
 
           # pick correct config for type
           if [[ "${{ matrix.disk-type }}" == "anaconda-iso" ]]; then
-            echo "CONFIG_FILE=./disk_config/iso-${dm}.toml" >> "$GITHUB_ENV"
+            echo "[customizations.installer.kickstart]" > ./disk_config/disk.toml
+            envsubst < ./disk_config/iso-kickstart-template.txt >> ./disk_config/disk.toml
+            echo "[customizations.installer.modules]" >> ./disk_config/disk.toml
+            cat ./disk_config/iso-modules-${dm}-template.txt >> ./disk_config/disk.toml
           else
-            echo "CONFIG_FILE=./disk_config/disk.toml" >> "$GITHUB_ENV"
+            echo "[[customizations.filesystem]]" > ./disk_config/disk.toml
+            cat ./disk_config/qcow2-template.txt >> ./disk_config/disk.toml
           fi
+          echo "CONFIG_FILE=./disk_config/disk.toml" >> "$GITHUB_ENV"
 
           # record user ids for chown
           echo "USER_UID=$(id -u)" >> "$GITHUB_ENV"
@@ -102,7 +107,7 @@ jobs:
         with:
           builder-image: ${{ env.BIB_IMAGE }}
           config-file: ${{ env.CONFIG_FILE }}
-          image: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}
+          image: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }}
           chown: ${{ env.USER_UID }}:${{ env.USER_GID }}
           types: ${{ matrix.disk-type }}
           additional-args: --use-librepo=True
