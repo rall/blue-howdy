@@ -15,7 +15,7 @@
             "enableNonRootDocker": "true",
             "moby": "true"
         },
-        "ghcr.io/ghcr.io/dhoeric/features/act:1": {}        
+        "ghcr.io/dhoeric/features/act:1": {}        
     },
     "customizations": {
         "vscode": {
