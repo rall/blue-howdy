@@ -24,6 +24,7 @@ jobs:
         disk-type: [qcow2, anaconda-iso]
         base:
           - bazzite-howdy
+          - bazzite-gnome-howdy
           - bazzite-dx-howdy
           - bazzite-dx-nvidia-howdy
           - bazzite-dx-nvidia-gnome-howdy
@@ -34,6 +35,8 @@ jobs:
         stream: [gts, stable]
         exclude:
           - base: bazzite-howdy
+            stream: gts
+          - base: bazzite-gnome-howdy
             stream: gts
           - base: bazzite-dx-howdy
             stream: gts

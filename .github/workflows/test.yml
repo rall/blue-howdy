@@ -20,6 +20,7 @@ jobs:
       matrix:
         base:
           - bazzite
+          - bazzite-gnome
           - bazzite-dx
           - bazzite-dx-nvidia
           - bazzite-dx-nvidia-gnome
@@ -32,6 +33,8 @@ jobs:
           - stable
         exclude:
           - base: bazzite
+            stream: gts
+          - base: bazzite-gnome
             stream: gts
           - base: bazzite-dx
             stream: gts
