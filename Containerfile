@@ -11,7 +11,7 @@ LABEL org.rall.base_image="${BASE_IMAGE}"
 RUN dnf5 -y clean all && dnf5 -y makecache --refresh || true
 
 RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy \
-    policycoreutils-python-utils selinux-policy-devel setools-console \
+    policycoreutils-python-utils selinux-policy-devel \
     libsepol libsemanage python3-libsemanage v4l-utils && \
     rpm-ostree cleanup -m
 
