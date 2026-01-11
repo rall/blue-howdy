@@ -51,7 +51,7 @@ jobs:
       IMAGE_NAME: ${{ matrix.base }}
       IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
       IMAGE_VERSION: ${{ matrix.stream }}
-      BIB_IMAGE: ghcr.io/lorbuschris/bootc-image-builder:20250608
+      BIB_IMAGE: ghcr.io/lorbuschris/bootc-image-builder:latest
 
     steps:
       - name: Checkout
