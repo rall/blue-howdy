@@ -12,14 +12,17 @@ sudoif cmd +args='':
         {{cmd}} {{args}}
     fi
 
-# Enable Howdy authentication via authselect
+# Enable Howdy authentication via authselect (login + sudo)
 howdy-enable:
     just sudoif howdy-authselect enable
-    @echo "Howdy authentication enabled. Lock your session or switch user to test."
+    just sudoif systemctl enable --now howdy-authselect.path
+    @echo "Howdy authentication enabled for login and sudo."
+    @echo "Lock your session or run 'sudo -k && sudo echo test' to verify."
 
 # Disable Howdy authentication via authselect
 howdy-disable:
     just sudoif howdy-authselect disable
+    just sudoif systemctl disable --now howdy-authselect.path
     @echo "Howdy authentication disabled."
 
 # Show Howdy authselect status
