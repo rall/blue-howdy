@@ -9,6 +9,11 @@ Given('I am logged in to a fresh blue-howdy image') do
 end
 
 When("I run 'ujust howdy-enable'") do
+  # Check if howdy-authselect is available (F43+ only)
+  run_command_and_stop(container.exec_cmd("command -v howdy-authselect"), fail_on_error: false)
+  unless last_command_started.exit_status == 0
+    skip_this_scenario
+  end
   run_command_and_stop(container.exec_cmd("ujust howdy-enable", root: true), fail_on_error: true)
 end
 
