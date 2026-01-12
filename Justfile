@@ -12,43 +12,22 @@ sudoif cmd +args='':
         {{cmd}} {{args}}
     fi
 
-# Enable Howdy authentication via authselect (login + sudo)
-# On F43+ uses howdy-authselect, on F42 falls back to manual PAM editing
+# Enable Howdy authentication (login + sudo)
 howdy-enable:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if command -v howdy-authselect &>/dev/null; then
-        sudo howdy-authselect enable
-        sudo systemctl enable --now howdy-authselect.path
-        echo "Howdy authentication enabled for login and sudo."
-    else
-        echo "howdy-authselect not available (F42 or earlier)"
-        echo "Please manually add 'auth sufficient pam_howdy.so' to your PAM config"
-        exit 1
-    fi
-    echo "Lock your session or run 'sudo -k && sudo echo test' to verify."
+    just sudoif howdy-authselect enable
+    just sudoif systemctl enable --now howdy-authselect.path
+    @echo "Howdy authentication enabled for login and sudo."
+    @echo "Lock your session or run 'sudo -k && sudo echo test' to verify."
 
-# Disable Howdy authentication via authselect
+# Disable Howdy authentication
 howdy-disable:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if command -v howdy-authselect &>/dev/null; then
-        sudo howdy-authselect disable
-        sudo systemctl disable --now howdy-authselect.path
-        echo "Howdy authentication disabled."
-    else
-        echo "howdy-authselect not available (F42 or earlier)"
-        exit 1
-    fi
+    just sudoif howdy-authselect disable
+    just sudoif systemctl disable --now howdy-authselect.path
+    @echo "Howdy authentication disabled."
 
-# Show Howdy authselect status
+# Show Howdy status
 howdy-status:
-    #!/usr/bin/env bash
-    if command -v howdy-authselect &>/dev/null; then
-        howdy-authselect status
-    else
-        echo "howdy-authselect not available (F42 or earlier)"
-    fi
+    howdy-authselect status || true
 
 @howdy-camera-picker:
     #!/usr/bin/env bash

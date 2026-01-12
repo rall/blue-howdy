@@ -31,16 +31,7 @@ jobs:
           - bluefin-dx-howdy
           - bluefin-nvidia-howdy
           - bluefin-dx-nvidia-open-howdy
-        stream: [gts, stable]
-        exclude:
-          - base: bazzite-howdy
-            stream: gts
-          - base: bazzite-dx-howdy
-            stream: gts
-          - base: bazzite-dx-nvidia-howdy
-            stream: gts
-          - base: bazzite-dx-nvidia-gnome-howdy
-            stream: gts
+        stream: [stable]
 
     permissions:
       contents: read

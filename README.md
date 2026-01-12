@@ -2,13 +2,13 @@
 
 Bluefin and Bazzite images with **Howdy face authentication** pre-installed.
 
-This is an alternative to installing Howdy via `rpm-ostree` yourself. These images include Howdy from the [ronnypfannschmidt/howdy-beta](https://copr.fedorainfracloud.org/coprs/ronnypfannschmidt/howdy-beta/) COPR, which provides proper Fedora 43 support and seamless authselect integration.
+This is an alternative to installing Howdy via `rpm-ostree` yourself. These images include Howdy from the [ronnypfannschmidt/howdy-beta](https://copr.fedorainfracloud.org/coprs/ronnypfannschmidt/howdy-beta/) COPR, which provides Fedora 43 support and seamless authselect integration.
 
 ---
 
 ## Available Images
 
-Images are based on Bluefin and Bazzite variants with `gts` or `stable` tags:
+Images are based on Bluefin and Bazzite variants (Fedora 43 / `stable` only):
 
 - `bluefin-howdy`, `bluefin-dx-howdy`, `bluefin-nvidia-howdy`, `bluefin-dx-nvidia-open-howdy`
 - `bazzite-howdy`, `bazzite-dx-howdy`, `bazzite-dx-nvidia-howdy`, `bazzite-dx-nvidia-gnome-howdy`
@@ -20,7 +20,7 @@ Images are based on Bluefin and Bazzite variants with `gts` or `stable` tags:
 1. Switch to the image:
 
 ```bash
-sudo bootc switch ghcr.io/rall/bluefin-dx-nvidia-open-howdy:gts
+sudo bootc switch ghcr.io/rall/bluefin-dx-nvidia-open-howdy:stable
 ```
 
 2. Reboot.
@@ -52,8 +52,8 @@ sudo howdy add
 ### Enable/Disable Howdy
 
 ```bash
-ujust howdy-enable   # Enable Howdy for login
-ujust howdy-disable  # Disable Howdy for login
+ujust howdy-enable   # Enable Howdy for login and sudo
+ujust howdy-disable  # Disable Howdy
 ujust howdy-status   # Show current status
 ```
 
@@ -81,10 +81,10 @@ These images use `howdy-authselect` from the ronnypfannschmidt COPR, which confi
 
 ```bash
 podman build \
-  --build-arg BASE_IMAGE=ghcr.io/ublue-os/bluefin-dx-nvidia-open:gts \
-  -t blue-howdy:gts .
+  --build-arg BASE_IMAGE=ghcr.io/ublue-os/bluefin-dx-nvidia-open:stable \
+  -t blue-howdy:stable .
 
-sudo bootc switch localhost/blue-howdy:gts
+sudo bootc switch localhost/blue-howdy:stable
 ```
 
 ---
