@@ -25,22 +25,17 @@ Then(/the PAM config for (the display manager|sudo) (should not|should) contain 
     "should" => true,
     "should not" => false
   }[shd]
+  # howdy-authselect patches /etc/authselect/password-auth (login) and system-auth (sudo)
   if service_test == "sudo"
-    service = service_test
+    auth_file = "/etc/authselect/system-auth"
   else
-    run_command_and_stop(container.exec_cmd("ls /etc/pam.d"), fail_on_error: false)
-    ["gdm-password", "sddm"].each do |pam|
-      if last_command_started.output.include?(pam)
-        service = pam
-      end
-    end
+    auth_file = "/etc/authselect/password-auth"
   end
-  raise "Unknown service" unless service
-  run_command_and_stop(container.exec_cmd("cat /etc/pam.d/#{service}"), fail_on_error: false)
+  run_command_and_stop(container.exec_cmd("cat #{auth_file}"), fail_on_error: false)
   if should
-    raise "#{pam_line} not present in /etc/pam.d/#{service}" unless last_command_started.output.include?(pam_line)
+    raise "#{pam_line} not present in #{auth_file}" unless last_command_started.output.include?(pam_line)
   else
-    raise "#{pam_line} present in /etc/pam.d/#{service}" if last_command_started.output.include?(pam_line)
+    raise "#{pam_line} present in #{auth_file}" if last_command_started.output.include?(pam_line)
   end
 end
 
