@@ -1,29 +1,21 @@
 set quiet
-set export
-
-# Run command as root if needed
-
-sudoif cmd +args='':
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [[ $EUID -ne 0 ]]; then
-        sudo {{cmd}} {{args}}
-    else
-        {{cmd}} {{args}}
-    fi
 
 # Enable Howdy authentication (login + sudo)
 howdy-enable:
-    just sudoif howdy-authselect enable
-    just sudoif systemctl enable --now howdy-authselect.path
-    @echo "Howdy authentication enabled for login and sudo."
-    @echo "Lock your session or run 'sudo -k && sudo echo test' to verify."
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sudo howdy-authselect enable
+    sudo systemctl enable --now howdy-authselect.path
+    echo "Howdy authentication enabled for login and sudo."
+    echo "Lock your session or run 'sudo -k && sudo echo test' to verify."
 
 # Disable Howdy authentication
 howdy-disable:
-    just sudoif howdy-authselect disable
-    just sudoif systemctl disable --now howdy-authselect.path
-    @echo "Howdy authentication disabled."
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sudo howdy-authselect disable
+    sudo systemctl disable --now howdy-authselect.path
+    echo "Howdy authentication disabled."
 
 # Show Howdy status
 howdy-status:
