@@ -5,7 +5,11 @@ howdy-enable:
     #!/usr/bin/env bash
     set -euo pipefail
     sudo howdy-authselect enable
-    sudo systemctl enable --now howdy-authselect.path
+    if [ -d /run/systemd/system ]; then \
+        sudo systemctl enable --now howdy-authselect.path; \
+    else \
+        echo "systemd not running, skipping service enable"; \
+    fi
     echo "Howdy authentication enabled for login and sudo."
     echo "Lock your session or run 'sudo -k && sudo echo test' to verify."
 
@@ -14,7 +18,11 @@ howdy-disable:
     #!/usr/bin/env bash
     set -euo pipefail
     sudo howdy-authselect disable
-    sudo systemctl disable --now howdy-authselect.path
+    if [ -d /run/systemd/system ]; then \
+        sudo systemctl disable --now howdy-authselect.path; \
+    else \
+        echo "systemd not running, skipping service disable"; \
+    fi
     echo "Howdy authentication disabled."
 
 # Show Howdy status
