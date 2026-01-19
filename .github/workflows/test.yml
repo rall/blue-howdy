@@ -28,32 +28,22 @@ jobs:
           - bluefin-nvidia
           - bluefin-dx-nvidia-open
         stream:
-          - gts
           - stable
-        exclude:
-          - base: bazzite
-            stream: gts
-          - base: bazzite-dx
-            stream: gts
-          - base: bazzite-dx-nvidia
-            stream: gts
-          - base: bazzite-dx-nvidia-gnome
-            stream: gts
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 
-      
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.4.5'
-      
+          ruby-version: "3.4.5"
+
       - name: Install dependencies
         run: bundle install
-        
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Set up ublue storage
         uses: ublue-os/container-storage-action@main
 

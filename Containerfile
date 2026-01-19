@@ -11,7 +11,7 @@ LABEL org.rall.base_image="${BASE_IMAGE}"
 RUN dnf5 -y clean all && dnf5 -y makecache --refresh || true
 
 RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy \
-    policycoreutils-python-utils selinux-policy-devel setools-console \
+    policycoreutils-python-utils selinux-policy-devel \
     libsepol libsemanage python3-libsemanage v4l-utils && \
     rpm-ostree cleanup -m
 
@@ -30,9 +30,10 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 
 # add just tasks to global recipes
 RUN install -d -m 0755 /usr/share/ublue-os/just
-COPY Justfile /usr/share/ublue-os/just/blue-howdy.just
-RUN chmod 0644 /usr/share/ublue-os/just/blue-howdy.just
-RUN printf '\nimport "/usr/share/ublue-os/just/blue-howdy.just"\n' >> /usr/share/ublue-os/justfile
+COPY Justfile /usr/share/ublue-os/just/60-blue-howdy.just
+RUN chmod 0644 /usr/share/ublue-os/just/60-blue-howdy.just
+# Append import to 60-custom.just (both bluefin and bazzite import this file)
+RUN printf 'import "/usr/share/ublue-os/just/60-blue-howdy.just"\n' >> /usr/share/ublue-os/just/60-custom.just
 
 RUN ostree container commit
 

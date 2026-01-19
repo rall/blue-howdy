@@ -8,42 +8,15 @@ Given('I am logged in to a fresh blue-howdy image') do
   puts last_command_started.output
 end
 
-When(/I run 'ujust howdy-pam' to (add howdy to|remove howdy from) (login|sudo)/) do |act, pam|
-  answers = {
-    :"Add Howdy to login?" => (pam == "login" && act == "add howdy to"),
-    :"Remove Howdy from login?" => (pam == "login" && act == "remove howdy from"),
-    :"Add Howdy to sudo?" => (pam == "sudo" && act == "add howdy to"),
-    :"Remove Howdy from sudo?" => (pam == "sudo" && act == "remove howdy from"), 
-  }
-  run_command(container.exec_cmd("ujust howdy-pam", interactive: true, root: true), io_wait_timeout: 10)
-  last_line = []
-  start_time = Time.now
-  max_time = 240
-  until last_command_started.output.include?("Done. Now lock your session or switch user to test the greeter.")
-    raise "Step duration exceeded #{max_time}s" if Time.now - start_time > max_time
-    answers.each do |k, v|
-      if last_line.include?(k.to_s)
-        last_command_started.write v ? "y" : "n"
-      end
-    end
-    lines = last_command_started.output.split("\n")
-    ignore_lines = [
-      "Unable to create log dir",
-      "sudo: PAM account management error",
-      "sudo: a password is required"
-    ]
-    filtered_lines = ignore_lines.reduce(lines) do |filtered, filter|
-      filtered.select { |line| !line.start_with?(filter) }
-    end
-    last_line = filtered_lines.last
-    sleep 0.1
-  end
-  last_command_started.write "exit"
-  last_command_started.stop
+When("I run 'ujust howdy-enable'") do
+  run_command_and_stop(container.exec_cmd("ujust howdy-enable", root: true), fail_on_error: true)
 end
 
+When("I run 'ujust howdy-disable'") do
+  run_command_and_stop(container.exec_cmd("ujust howdy-disable", root: true), fail_on_error: true)
+end
 
-Then('the PAM config should be syntactically correct') do 
+Then('the PAM config should be syntactically correct') do
   run_command_and_stop(container.exec_cmd("authselect check"), fail_on_error: true)
 end
 
@@ -52,22 +25,17 @@ Then(/the PAM config for (the display manager|sudo) (should not|should) contain 
     "should" => true,
     "should not" => false
   }[shd]
-  if service_test == "sudo" 
-    service = service_test
+  # howdy-authselect patches /etc/authselect/password-auth (login) and system-auth (sudo)
+  if service_test == "sudo"
+    auth_file = "/etc/authselect/system-auth"
   else
-    run_command_and_stop(container.exec_cmd("ls /etc/pam.d"), fail_on_error: false)
-    ["gdm-password", "sddm"].each do |pam|
-      if last_command_started.output.include?(pam)
-        service = pam
-      end
-    end
+    auth_file = "/etc/authselect/password-auth"
   end
-  raise "Unknown service" unless service
-  run_command_and_stop(container.exec_cmd("cat /etc/pam.d/#{service}"), fail_on_error: false)
+  run_command_and_stop(container.exec_cmd("cat #{auth_file}"), fail_on_error: false)
   if should
-    raise "#{pam_line} not present in /etc/pam.d/#{service}" unless last_command_started.output.include?(pam_line)
+    raise "#{pam_line} not present in #{auth_file}" unless last_command_started.output.include?(pam_line)
   else
-    raise "#{pam_line} present in /etc/pam.d/#{service}" if last_command_started.output.include?(pam_line)
+    raise "#{pam_line} present in #{auth_file}" if last_command_started.output.include?(pam_line)
   end
 end
 

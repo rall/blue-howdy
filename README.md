@@ -1,96 +1,98 @@
 # Blue-Howdy
 
-Bluefin images that enable **Howdy face login** out of the box, with **SELinux enforcing**.
+Bluefin and Bazzite images with **Howdy face authentication** pre-installed.
+
+This is an alternative to installing Howdy via `rpm-ostree` yourself. These images include Howdy from the [ronnypfannschmidt/howdy-beta](https://copr.fedorainfracloud.org/coprs/ronnypfannschmidt/howdy-beta/) COPR, which provides Fedora 43 support and seamless authselect integration.
 
 ---
 
-## What these images do
+## Available Images
 
-- Based on Bluefin (plain, dx, nvidia, nvidia-open; `gts`/`latest`).
-- Ship Howdy for biometric authentication at the display manager.
-- Include SELinux tooling and install a custom module on first boot:
-  - Grants `gdm_t`, `xdm_t`, `sddm_t`, `lightdm_t` access to `/dev/video*`.
-  - Compiles policy from a raw `.te` at boot.
-  - Falls back to AVC-derived module if install fails.
-  - **Never** sets domains to permissive.
-- A systemd unit (`howdy-selinux-install.service`) runs the helper at boot.
+Images are based on Bluefin and Bazzite variants (Fedora 43 / `stable` only):
+
+- `bluefin-howdy`, `bluefin-dx-howdy`, `bluefin-nvidia-howdy`, `bluefin-dx-nvidia-open-howdy`
+- `bazzite-howdy`, `bazzite-dx-howdy`, `bazzite-dx-nvidia-howdy`, `bazzite-dx-nvidia-gnome-howdy`
 
 ---
 
 ## Quick Start
 
-1. Boot into the image:
+1. Switch to the image:
 
-```
-sudo bootc switch ghcr.io/rall/bluefin-dx-nvidia-open-howdy:gts
-```
-
-Other variants exist (`bluefin-howdy`, `bluefin-dx-howdy`, `bluefin-nvidia-howdy`) with `gts` or `stable` tags.
-
-2. Configure PAM (adds Howdy to GDM or SDDM, optional prompt for sudo):
-
-```
-ujust howdy-pam
+```bash
+sudo bootc switch ghcr.io/rall/bluefin-dx-nvidia-open-howdy:stable
 ```
 
-3. Pick the right camera interactively:
+2. Reboot.
 
+3. Enable Howdy authentication:
+
+```bash
+ujust howdy-enable
 ```
+
+4. Pick the right camera:
+
+```bash
 ujust howdy-camera-picker
 ```
 
-4. Reboot.
+5. Add your face:
+
+```bash
+sudo howdy add
+```
+
+6. Lock your session or switch user to test.
 
 ---
 
-## Configuration
+## Commands
 
-This repo adds Justfile tasks for configuring PAM, selecting the Howdy camera, and repairing SELinux policy.
+### Enable/Disable Howdy
 
-### PAM helpers
-
-- Add or remove Howdy to/from the login greeter (GDM or SDDM) and/or sudo:
-
-```
-ujust howdy-pam
+```bash
+ujust howdy-enable   # Enable Howdy for login and sudo
+ujust howdy-disable  # Disable Howdy
+ujust howdy-status   # Show current status
 ```
 
-**<span style="color:red">To avoid potential lock-out, make sure you verify the changes made to your pam.d config before rebooting</span>**
+### Camera Configuration
 
-### Camera helpers
-
-- Interactively test each `/dev/video*` with `howdy test` and pick the right one:
-
-```
+```bash
 ujust howdy-camera-picker
 ```
 
-The task will run `sudo howdy test` against each camera node, skip devices that fail, let you keep one or more, and auto-select if only one works.
+Interactively tests each `/dev/video*` device with `howdy test` and lets you pick the right IR camera.
 
 ---
 
-## Development Environment
+## How It Works
 
-The repo ships a devcontainer setup with Docker Compose and an [aider](https://aider.chat/) container
+These images use `howdy-authselect` from the ronnypfannschmidt COPR, which configures PAM via authselect. This is more robust than manual PAM file editing because:
+
+- Configuration persists across `authselect select` operations
+- No manual SELinux policy rebuilds needed
+- Works correctly on immutable Fedora variants (Silverblue, Kinoite, etc.)
 
 ---
 
-## Building the Images
+## Building Locally
 
-Local build and switch with bootc:
-
-```
+```bash
 podman build \
-  --build-arg BASE_IMAGE=ghcr.io/ublue-os/bluefin-dx-nvidia-open:gts \
-  -t blue-howdy:gts .
+  --build-arg BASE_IMAGE=ghcr.io/ublue-os/bluefin-dx-nvidia-open:stable \
+  -t blue-howdy:stable .
 
-sudo bootc switch localhost/blue-howdy:gts
+sudo bootc switch localhost/blue-howdy:stable
 ```
 
 ---
 
 ## Troubleshooting
 
-- **Howdy prompts missing**: run `just howdy-pam` to (re)insert PAM lines; it will no-op if they’re already present.
+**Howdy not prompting at login**: Run `ujust howdy-enable` to enable authentication.
 
-- **Howdy unlocks my session, but I still have to enter my password to unlock the login keyring**: This is expected — PAM doesn't have your password so it can't pass it along to the GNOME Keyring. You could avoid this by blanking the keyring password with [Seahorse](https://wiki.gnome.org/Apps/Seahorse)
+**Wrong camera selected**: Run `ujust howdy-camera-picker` to select the correct IR camera.
+
+**Howdy unlocks session but keyring still needs password**: This is expected. PAM doesn't have your password so it can't unlock the GNOME Keyring. You can blank the keyring password with [Seahorse](https://wiki.gnome.org/Apps/Seahorse) if desired.
