@@ -36,6 +36,12 @@ RUN chmod 0644 /usr/share/ublue-os/just/60-blue-howdy.just
 # Append import to 60-custom.just (both bluefin and bazzite import this file)
 RUN printf 'import "/usr/share/ublue-os/just/60-blue-howdy.just"\n' >> /usr/share/ublue-os/just/60-custom.just
 
+# Work around BIB depsolve bug (osbuild/bootc-image-builder#1188):
+# BIB can't read file:// GPG keys from inside the container during ISO builds.
+# Disable the repo entirely — BIB doesn't need it for Anaconda installer packages.
+# If that changes, the build will fail with a missing dependency rather than pulling unverified packages.
+RUN sed -i 's/enabled=1/enabled=0/' /etc/yum.repos.d/terra-mesa.repo 2>/dev/null || true
+
 RUN ostree container commit
 
 # Verify final image and contents are correct.
