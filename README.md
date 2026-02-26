@@ -52,10 +52,12 @@ sudo howdy add
 ### Enable/Disable Howdy
 
 ```bash
-ujust howdy-enable   # Enable Howdy for login and sudo
+ujust howdy-enable   # Enable Howdy (lock screen + sudo; boot login uses password)
 ujust howdy-disable  # Disable Howdy
 ujust howdy-status   # Show current status
 ```
+
+On a fresh boot, GDM always prompts for your password so that GNOME Keyring gets unlocked. Once you're logged in, Howdy handles lock-screen unlock and sudo via face recognition.
 
 ### Camera Configuration
 
@@ -74,6 +76,8 @@ These images use `howdy-authselect` from the ronnypfannschmidt COPR, which confi
 - Configuration persists across `authselect select` operations
 - No manual SELinux policy rebuilds needed
 - Works correctly on immutable Fedora variants (Silverblue, Kinoite, etc.)
+
+A session gate (`/usr/libexec/howdy-session-gate`) is inserted before `pam_howdy.so` in `password-auth` so that Howdy is only used when the user already has an active session (lock-screen unlock). On a fresh boot login, the gate skips Howdy and falls through to password authentication, which allows GNOME Keyring to be unlocked automatically. The `system-auth` file is not gated, so sudo always uses face recognition.
 
 ---
 

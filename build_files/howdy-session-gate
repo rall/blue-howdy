@@ -1,0 +1,25 @@
+#!/bin/bash
+# howdy-session-gate — PAM gate for Howdy face authentication
+#
+# Used with pam_exec.so to skip Howdy on fresh boot login (so the password
+# is collected and GNOME Keyring gets unlocked) while still allowing Howdy
+# on lock-screen unlock (where the keyring is already open).
+#
+# Exit 0 = user already has a graphical session → allow Howdy (lock screen)
+# Exit 1 = no session for user → skip Howdy (fresh login, need password)
+#
+# PAM stack usage (in password-auth):
+#   auth [success=ok default=1] pam_exec.so quiet /usr/libexec/howdy-session-gate
+#   auth sufficient            pam_howdy.so
+#
+# When pam_exec returns 1 (no session), "default=1" skips the next line
+# (pam_howdy.so), falling through to pam_unix for password authentication.
+
+user="${PAM_USER:-}"
+[ -z "$user" ] && exit 1
+
+# Check whether the authenticating user already owns a session.
+# On a fresh boot no user session exists yet; on a lock-screen unlock
+# the user's graphical session is still active.
+loginctl list-sessions --no-legend --no-pager 2>/dev/null \
+    | awk -v u="$user" '$3 == u { found = 1; exit } END { exit !found }'

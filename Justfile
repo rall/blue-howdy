@@ -1,9 +1,13 @@
 set quiet
 
-# Enable Howdy authentication (login + sudo)
+# Enable Howdy authentication (lock screen + sudo; fresh boot login uses password)
 howdy-enable:
     #!/usr/bin/env bash
     set -euo pipefail
+    GATE="/usr/libexec/howdy-session-gate"
+    PASSWORD_AUTH="/etc/authselect/password-auth"
+    GATE_LINE="auth        [success=ok default=1]                       pam_exec.so quiet $GATE"
+
     # Remove stale pam_howdy.so lines from pam.d files that may be left over
     # from the old manual howdy-pam approach. howdy-authselect manages Howdy
     # via authselect (password-auth/system-auth), so direct pam.d entries
@@ -15,19 +19,43 @@ howdy-enable:
             sudo sed -i '/pam_howdy\.so/d' "$pam_file"
         fi
     done
+
     sudo howdy-authselect enable
+
+    # Gate Howdy in password-auth so it only runs on lock-screen unlock, not
+    # on fresh boot login.  A fresh login needs the password so GNOME Keyring
+    # gets unlocked.  The gate script checks whether the user already has an
+    # active session (lock screen) and returns 0; if not (boot), it returns 1
+    # and "default=1" skips the next line (pam_howdy.so), falling through to
+    # pam_unix for password authentication.
+    #
+    # system-auth is left unchanged — sudo always gets Howdy.
+    if [ -f "$GATE" ] && [ -f "$PASSWORD_AUTH" ]; then
+        if grep -q 'pam_howdy\.so' "$PASSWORD_AUTH" && ! grep -q 'howdy-session-gate' "$PASSWORD_AUTH"; then
+            echo "Adding session gate to $PASSWORD_AUTH"
+            sudo sed -i "s|^auth.*sufficient.*pam_howdy\.so.*|${GATE_LINE}\n&|" "$PASSWORD_AUTH"
+        fi
+    fi
+
     if [ -d /run/systemd/system ]; then \
         sudo systemctl enable --now howdy-authselect.path; \
     else \
         echo "systemd not running, skipping service enable"; \
     fi
-    echo "Howdy authentication enabled for login and sudo."
-    echo "Lock your session or run 'sudo -k && sudo echo test' to verify."
+    echo "Howdy authentication enabled."
+    echo "  Fresh boot login: password (unlocks GNOME Keyring)"
+    echo "  Lock screen:      face recognition"
+    echo "  sudo:             face recognition"
 
 # Disable Howdy authentication
 howdy-disable:
     #!/usr/bin/env bash
     set -euo pipefail
+    # Remove the session gate line if present
+    if [ -f /etc/authselect/password-auth ] && grep -q 'howdy-session-gate' /etc/authselect/password-auth; then
+        echo "Removing session gate from /etc/authselect/password-auth"
+        sudo sed -i '/howdy-session-gate/d' /etc/authselect/password-auth
+    fi
     sudo howdy-authselect disable
     if [ -d /run/systemd/system ]; then \
         sudo systemctl disable --now howdy-authselect.path; \
