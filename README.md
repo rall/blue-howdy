@@ -95,4 +95,6 @@ sudo bootc switch localhost/blue-howdy:stable
 
 **Wrong camera selected**: Run `ujust howdy-camera-picker` to select the correct IR camera.
 
+**System shuts down after suspend/resume when logging in**: If you upgraded from an older image that used manual PAM editing (`ujust howdy-pam`), stale `pam_howdy.so` lines may remain in `/etc/pam.d/gdm-password` or `/etc/pam.d/sudo`. This causes Howdy to run twice per login attempt — once from the pam.d file and once from the authselect-managed config. After suspend/resume, the double invocation can crash GDM and trigger a shutdown. Run `ujust howdy-enable` to clean up the stale entries automatically.
+
 **Howdy unlocks session but keyring still needs password**: This is expected. PAM doesn't have your password so it can't unlock the GNOME Keyring. You can blank the keyring password with [Seahorse](https://wiki.gnome.org/Apps/Seahorse) if desired.

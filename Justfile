@@ -4,6 +4,17 @@ set quiet
 howdy-enable:
     #!/usr/bin/env bash
     set -euo pipefail
+    # Remove stale pam_howdy.so lines from pam.d files that may be left over
+    # from the old manual howdy-pam approach. howdy-authselect manages Howdy
+    # via authselect (password-auth/system-auth), so direct pam.d entries
+    # cause Howdy to run twice per auth attempt. After suspend/resume this
+    # double invocation can crash GDM and trigger a system shutdown.
+    for pam_file in /etc/pam.d/gdm-password /etc/pam.d/sudo; do
+        if [ -f "$pam_file" ] && grep -q 'pam_howdy\.so' "$pam_file"; then
+            echo "Removing stale pam_howdy.so from $pam_file"
+            sudo sed -i '/pam_howdy\.so/d' "$pam_file"
+        fi
+    done
     sudo howdy-authselect enable
     if [ -d /run/systemd/system ]; then \
         sudo systemctl enable --now howdy-authselect.path; \
