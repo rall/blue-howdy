@@ -15,6 +15,20 @@ Images are based on Bluefin and Bazzite variants (Fedora 43 / `stable` only):
 
 ---
 
+## Disk Images
+
+Pre-built qcow2 and Anaconda ISO images are available for direct download:
+
+**https://images.rosybone.farm**
+
+For example:
+- `https://images.rosybone.farm/bluefin-howdy/stable/qcow2/`
+- `https://images.rosybone.farm/bluefin-howdy/stable/anaconda-iso/`
+
+Images are rebuilt automatically on every container image update.
+
+---
+
 ## Quick Start
 
 1. Switch to the image:
