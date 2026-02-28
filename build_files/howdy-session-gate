@@ -1,25 +1,38 @@
 #!/bin/bash
 # howdy-session-gate — PAM gate for Howdy face authentication
 #
-# Used with pam_exec.so to skip Howdy on fresh boot login (so the password
-# is collected and GNOME Keyring gets unlocked) while still allowing Howdy
-# on lock-screen unlock (where the keyring is already open).
+# Used with pam_exec.so to skip Howdy on the GDM login/lock screen when a
+# password is needed for gnome-keyring, while still allowing Howdy everywhere
+# else (sudo, polkit, etc. use system-auth which is not gated).
 #
-# Exit 0 = user already has a graphical session → allow Howdy (lock screen)
-# Exit 1 = no session for user → skip Howdy (fresh login, need password)
+# Howdy is skipped when:
+#   1. Fresh boot — no user session exists yet, so gnome-keyring needs the
+#      password to unlock.
+#   2. Resume from suspend — gnome-keyring needs a password to avoid crashing
+#      GDM (howdy-suspend-hook creates a marker before suspend).
+#
+# Exit 0 = allow Howdy
+# Exit 1 = skip Howdy (fall through to password authentication)
 #
 # PAM stack usage (in password-auth):
 #   auth [success=ok default=1] pam_exec.so quiet /usr/libexec/howdy-session-gate
 #   auth sufficient            pam_howdy.so
 #
-# When pam_exec returns 1 (no session), "default=1" skips the next line
-# (pam_howdy.so), falling through to pam_unix for password authentication.
+# When pam_exec returns 1, "default=1" skips the next line (pam_howdy.so),
+# falling through to pam_unix for password authentication.
+
+# Skip Howdy after suspend/resume. The marker is created by howdy-suspend-hook
+# (a systemd sleep hook) and removed here on first check, so only the first
+# login attempt after resume requires a password.
+SUSPEND_MARKER="/run/howdy-suspended"
+if [ -f "$SUSPEND_MARKER" ]; then
+    rm -f "$SUSPEND_MARKER"
+    exit 1
+fi
 
 user="${PAM_USER:-}"
 [ -z "$user" ] && exit 1
 
-# Check whether the authenticating user already owns a session.
-# On a fresh boot no user session exists yet; on a lock-screen unlock
-# the user's graphical session is still active.
+# Skip Howdy on fresh boot — no session exists yet.
 loginctl list-sessions --no-legend --no-pager 2>/dev/null \
     | awk -v u="$user" '$3 == u { found = 1; exit } END { exit !found }'

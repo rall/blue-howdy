@@ -91,7 +91,7 @@ These images use `howdy-authselect` from the ronnypfannschmidt COPR, which confi
 - No manual SELinux policy rebuilds needed
 - Works correctly on immutable Fedora variants (Silverblue, Kinoite, etc.)
 
-A session gate (`/usr/libexec/howdy-session-gate`) is inserted before `pam_howdy.so` in `password-auth` so that Howdy is only used when the user already has an active session (lock-screen unlock). On a fresh boot login, the gate skips Howdy and falls through to password authentication, which allows GNOME Keyring to be unlocked automatically. The `system-auth` file is not gated, so sudo always uses face recognition.
+A session gate (`/usr/libexec/howdy-session-gate`) is inserted before `pam_howdy.so` in `password-auth` so that Howdy is skipped when gnome-keyring needs a password: on fresh boot (no active session) and on the first lock-screen unlock after suspend/resume (a systemd sleep hook sets a marker). The `system-auth` file is not gated, so sudo and polkit always use face recognition.
 
 ---
 
@@ -113,6 +113,6 @@ sudo bootc switch localhost/blue-howdy:stable
 
 **Wrong camera selected**: Run `ujust howdy-camera-picker` to select the correct IR camera.
 
-**System shuts down after suspend/resume when logging in**: If you upgraded from an older image that used manual PAM editing (`ujust howdy-pam`), stale `pam_howdy.so` lines may remain in `/etc/pam.d/gdm-password` or `/etc/pam.d/sudo`. This causes Howdy to run twice per login attempt — once from the pam.d file and once from the authselect-managed config. After suspend/resume, the double invocation can crash GDM and trigger a shutdown. Run `ujust howdy-enable` to clean up the stale entries automatically.
+**System shuts down after suspend/resume when logging in**: After resume, Howdy authenticates without a password, but gnome-keyring needs one to re-establish its session — this crashes GDM. A systemd sleep hook automatically skips Howdy on the first lock-screen unlock after resume, forcing password entry so gnome-keyring works correctly. Sudo and polkit are unaffected and always use face authentication. If you also upgraded from an older image that used manual PAM editing (`ujust howdy-pam`), stale `pam_howdy.so` lines may remain in `/etc/pam.d/gdm-password` or `/etc/pam.d/sudo` — run `ujust howdy-enable` to clean those up.
 
 **Howdy unlocks session but keyring still needs password**: This is expected. PAM doesn't have your password so it can't unlock the GNOME Keyring. You can blank the keyring password with [Seahorse](https://wiki.gnome.org/Apps/Seahorse) if desired.

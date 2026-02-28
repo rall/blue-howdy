@@ -1,0 +1,7 @@
+#!/bin/bash
+# Create a marker file when the system is about to suspend.
+# howdy-session-gate reads this to skip Howdy on the lock screen after resume,
+# forcing password authentication so gnome-keyring can unlock properly.
+if [ "$1" = "pre" ]; then
+    touch /run/howdy-suspended
+fi
