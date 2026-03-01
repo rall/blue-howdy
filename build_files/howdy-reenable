@@ -1,0 +1,24 @@
+#!/bin/bash
+# Re-enable Howdy face auth after the session unlocks post-resume.
+# Launched by howdy-suspend-hook; exits after re-enabling or timeout.
+
+HOWDY_CONFIG="/etc/howdy/config.ini"
+
+reenable() {
+    sed -i '/^disabled = true$/d' "$HOWDY_CONFIG" 2>/dev/null
+}
+
+# Listen for any session to unlock (LockedHint → false) via D-Bus.
+# Falls back to a 60-second timer if gdbus is unavailable.
+if command -v gdbus > /dev/null 2>&1; then
+    timeout 300 gdbus monitor --system --dest org.freedesktop.login1 2>/dev/null |
+    while IFS= read -r line; do
+        if [[ "$line" == *"'LockedHint': <false>"* ]]; then
+            break
+        fi
+    done
+else
+    sleep 60
+fi
+
+reenable

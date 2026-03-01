@@ -1,10 +1,29 @@
 #!/bin/bash
-# Create a marker file when the system is about to suspend.
-# howdy-session-gate reads this to skip Howdy on the lock screen after resume,
-# forcing password authentication so gnome-keyring can unlock properly.
+# Temporarily disable Howdy face auth before suspend.
+#
+# After resume, pam_howdy sees disabled=true and returns PAM_AUTH_ERR.
+# Because pam_howdy is configured as "sufficient", this failure simply
+# continues to the next PAM module — GDM shows its normal password prompt
+# and gnome-keyring gets the password it needs to unlock.
+#
+# howdy-reenable listens for the session unlock signal via D-Bus and
+# re-enables Howdy immediately once the user has authenticated.
+
+HOWDY_CONFIG="/etc/howdy/config.ini"
+
 if [ "$1" = "pre" ]; then
-    touch /run/howdy-suspended
-    # Ensure correct SELinux label (var_run_t) so the session gate
-    # (running as xdm_t under GDM) can read and remove the marker.
-    restorecon /run/howdy-suspended 2>/dev/null || true
+    [ -f "$HOWDY_CONFIG" ] || exit 0
+    if grep -q '^disabled' "$HOWDY_CONFIG"; then
+        sed -i 's/^disabled.*/disabled = true/' "$HOWDY_CONFIG"
+    else
+        sed -i '/^\[core\]/a disabled = true' "$HOWDY_CONFIG"
+    fi
+fi
+
+if [ "$1" = "post" ]; then
+    [ -f "$HOWDY_CONFIG" ] || exit 0
+    grep -q '^disabled = true' "$HOWDY_CONFIG" || exit 0
+    # Kill any previous listener from an earlier resume
+    pkill -f howdy-reenable 2>/dev/null || true
+    /usr/libexec/howdy-reenable &
 fi

@@ -1,22 +1,15 @@
-module howdy_dm 1.2;
+module howdy_dm 1.3;
 
 # Core types — xdm_t is the generic X display manager domain used by GDM
 # on Fedora.  Only types guaranteed to exist go in this require block;
 # if ANY required type is missing the entire module fails to load.
 require {
     type v4l_device_t, xdm_t;
-    type var_run_t;
     class chr_file { open read ioctl getattr map };
-    class file { open getattr read unlink };
 }
 
 # --- Camera access (IR camera for face authentication) ---
 allow xdm_t v4l_device_t:chr_file { open read ioctl getattr map };
-
-# --- Suspend marker (/run/howdy-suspended) ---
-# The session gate checks this file to skip Howdy on the lock screen
-# after resume, forcing password auth so gnome-keyring can unlock.
-allow xdm_t var_run_t:file { open getattr read unlink };
 
 # Optional rules for display managers that may not be installed.
 # Each optional block is silently skipped if the type doesn't exist,
@@ -24,15 +17,12 @@ allow xdm_t var_run_t:file { open getattr read unlink };
 optional {
     require { type gdm_t; }
     allow gdm_t v4l_device_t:chr_file { open read ioctl getattr map };
-    allow gdm_t var_run_t:file { open getattr read unlink };
 }
 optional {
     require { type sddm_t; }
     allow sddm_t v4l_device_t:chr_file { open read ioctl getattr map };
-    allow sddm_t var_run_t:file { open getattr read unlink };
 }
 optional {
     require { type lightdm_t; }
     allow lightdm_t v4l_device_t:chr_file { open read ioctl getattr map };
-    allow lightdm_t var_run_t:file { open getattr read unlink };
 }
