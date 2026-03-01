@@ -21,6 +21,7 @@ COPY build_files/howdy-suspend-hook /usr/lib/systemd/system-sleep/howdy-suspend-
 RUN chmod 0755 /usr/libexec/howdy-selinux-setup /usr/libexec/howdy-session-gate \
     /usr/lib/systemd/system-sleep/howdy-suspend-hook
 COPY selinux/howdy_dm.te /usr/share/selinux/howdy/howdy_dm.te
+COPY selinux/howdy_dm.fc /usr/share/selinux/howdy/howdy_dm.fc
 COPY systemd/howdy-selinux-install.service /usr/lib/systemd/system/howdy-selinux-install.service
 RUN ln -s ../howdy-selinux-install.service \
     /usr/lib/systemd/system/multi-user.target.wants/howdy-selinux-install.service

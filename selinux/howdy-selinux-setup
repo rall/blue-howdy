@@ -18,18 +18,20 @@ if ! sestatus >/dev/null 2>&1 || ! sestatus 2>/dev/null | grep -q 'enabled'; the
   exit 0
 fi
 
-# Check installed version; skip if already up to date
-SHIPPED_VER=$(awk '/^module / {print $3; exit}' /usr/share/selinux/howdy/howdy_dm.te 2>/dev/null | tr -d ';')
-INSTALLED_VER=$("$SEM" -l 2>/dev/null | awk '$1 == "howdy_dm" {print $2}')
-if [ -n "$INSTALLED_VER" ] && [ "$INSTALLED_VER" = "$SHIPPED_VER" ]; then
+# Check if already installed.  Newer semodule -l may omit version numbers,
+# so also compare the .te source to detect content changes.
+INSTALLED=$("$SEM" -l 2>/dev/null | grep -q '^howdy_dm' && echo yes || echo no)
+if [ "$INSTALLED" = "yes" ] && \
+   cmp -s /usr/share/selinux/howdy/howdy_dm.te "$WRK/howdy_dm.te.prev" 2>/dev/null; then
   exit 0
 fi
-if [ -n "$INSTALLED_VER" ]; then
-  log "upgrading howdy_dm $INSTALLED_VER → $SHIPPED_VER"
+if [ "$INSTALLED" = "yes" ]; then
+  log "reinstalling howdy_dm (policy source changed)"
 fi
 
 install -d -m0755 "$WRK"
 cp -f "/usr/share/selinux/howdy/howdy_dm.te" "$WRK/"
+cp -f "/usr/share/selinux/howdy/howdy_dm.fc" "$WRK/" 2>/dev/null || true
 
 # Prefer devel Makefile; else fall back to raw toolchain (module ver 21)
 if [ -f /usr/share/selinux/devel/Makefile ]; then
@@ -38,13 +40,21 @@ if [ -f /usr/share/selinux/devel/Makefile ]; then
 else
   log "building via checkmodule/semodule_package (c=21)"
   checkmodule -M -m -c 21 -o "$WRK/howdy_dm.mod" "$WRK/howdy_dm.te"
-  semodule_package -o "$WRK/howdy_dm.pp" -m "$WRK/howdy_dm.mod"
+  FC_OPT=""
+  [ -f "$WRK/howdy_dm.fc" ] && FC_OPT="-f $WRK/howdy_dm.fc"
+  semodule_package -o "$WRK/howdy_dm.pp" -m "$WRK/howdy_dm.mod" $FC_OPT
 fi
 
-# Try to install the compiled module
-if "$SEM" -i "$WRK/howdy_dm.pp" 2>/dev/null; then
+# Try to install the compiled module — log errors so failures are visible
+if output=$("$SEM" -i "$WRK/howdy_dm.pp" 2>&1); then
   log "installed TE module"
+  # Cache the .te source so we can detect future content changes
+  cp -f "$WRK/howdy_dm.te" "$WRK/howdy_dm.te.prev"
+  # Remove stale audit2allow fallback module if present
+  "$SEM" -r howdy_gdm_auto 2>/dev/null && log "removed stale howdy_gdm_auto module" || true
   exit 0
+else
+  log "semodule -i failed: $output"
 fi
 
 # Optional: AVC-derived module

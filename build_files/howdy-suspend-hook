@@ -4,4 +4,7 @@
 # forcing password authentication so gnome-keyring can unlock properly.
 if [ "$1" = "pre" ]; then
     touch /run/howdy-suspended
+    # Ensure correct SELinux label (var_run_t) so the session gate
+    # (running as xdm_t under GDM) can read and remove the marker.
+    restorecon /run/howdy-suspended 2>/dev/null || true
 fi

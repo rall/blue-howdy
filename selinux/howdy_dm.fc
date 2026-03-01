@@ -1,0 +1,4 @@
+# File context for Howdy suspend marker.
+# Ensure the marker is labeled var_run_t so display managers (gdm_t)
+# can read and remove it via the session gate script.
+/run/howdy-suspended    --  system_u:object_r:var_run_t:s0
