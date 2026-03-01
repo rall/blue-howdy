@@ -1,11 +1,21 @@
-module howdy_dm 1.0;
+module howdy_dm 1.1;
 
 require {
     type v4l_device_t, gdm_t, xdm_t, sddm_t, lightdm_t;
+    type var_run_t;
     class chr_file { open read ioctl getattr map };
+    class file { getattr read unlink };
 }
 
+# Allow display managers to access the IR camera for face authentication
 allow gdm_t      v4l_device_t:chr_file { open read ioctl getattr map };
 allow xdm_t      v4l_device_t:chr_file { open read ioctl getattr map };
 allow sddm_t     v4l_device_t:chr_file { open read ioctl getattr map };
 allow lightdm_t  v4l_device_t:chr_file { open read ioctl getattr map };
+
+# Allow display managers to read/remove the suspend marker (/run/howdy-suspended)
+# used by the session gate to skip Howdy on lock screen after resume
+allow gdm_t      var_run_t:file { getattr read unlink };
+allow xdm_t      var_run_t:file { getattr read unlink };
+allow sddm_t     var_run_t:file { getattr read unlink };
+allow lightdm_t  var_run_t:file { getattr read unlink };

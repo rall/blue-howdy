@@ -18,9 +18,14 @@ if ! sestatus >/dev/null 2>&1 || ! sestatus 2>/dev/null | grep -q 'enabled'; the
   exit 0
 fi
 
-# Exit if already installed
-if "$SEM" -l | awk '{print $1}' | grep -qx howdy_dm; then
+# Check installed version; skip if already up to date
+SHIPPED_VER=$(awk '/^module / {print $3; exit}' /usr/share/selinux/howdy/howdy_dm.te 2>/dev/null | tr -d ';')
+INSTALLED_VER=$("$SEM" -l 2>/dev/null | awk '$1 == "howdy_dm" {print $2}')
+if [ -n "$INSTALLED_VER" ] && [ "$INSTALLED_VER" = "$SHIPPED_VER" ]; then
   exit 0
+fi
+if [ -n "$INSTALLED_VER" ]; then
+  log "upgrading howdy_dm $INSTALLED_VER → $SHIPPED_VER"
 fi
 
 install -d -m0755 "$WRK"
