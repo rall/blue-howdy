@@ -9,7 +9,5 @@
     "GID": "${localEnv:GID}",
   },
   "mounts": ["type=cache,target=/usr/local/bundle"],
-  "postCreateCommand": "bundle",
-  // // Use 'forwardPorts' to make a list of ports inside the container available locally.
-  // "forwardPorts": [],
+  "postCreateCommand": "bundle"
 }
