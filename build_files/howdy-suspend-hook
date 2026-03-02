@@ -12,6 +12,10 @@
 HOWDY_CONFIG="/etc/howdy/config.ini"
 
 if [ "$1" = "pre" ]; then
+    # Kill any lingering listener (and its gdbus child) from a previous resume
+    # before systemd tries to freeze user.slice — unfrozen processes block suspend
+    pkill -f howdy-reenable 2>/dev/null || true
+    pkill -f 'gdbus monitor.*login1' 2>/dev/null || true
     [ -f "$HOWDY_CONFIG" ] || exit 0
     if grep -q '^disabled' "$HOWDY_CONFIG"; then
         sed -i 's/^disabled.*/disabled = true/' "$HOWDY_CONFIG"
@@ -23,7 +27,5 @@ fi
 if [ "$1" = "post" ]; then
     [ -f "$HOWDY_CONFIG" ] || exit 0
     grep -q '^disabled = true' "$HOWDY_CONFIG" || exit 0
-    # Kill any previous listener from an earlier resume
-    pkill -f howdy-reenable 2>/dev/null || true
     /usr/libexec/howdy-reenable &
 fi

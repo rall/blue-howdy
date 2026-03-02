@@ -11,8 +11,10 @@ reenable() {
 # Listen for any session to unlock (LockedHint → false) via D-Bus.
 # Falls back to a 60-second timer if gdbus is unavailable.
 if command -v gdbus > /dev/null 2>&1; then
-    timeout 300 gdbus monitor --system --dest org.freedesktop.login1 2>/dev/null |
-    while IFS= read -r line; do
+    coproc GDBUS { timeout 300 gdbus monitor --system --dest org.freedesktop.login1 2>/dev/null; }
+    trap "kill $GDBUS_PID 2>/dev/null" EXIT
+
+    while IFS= read -r line <&"${GDBUS[0]}"; do
         if [[ "$line" == *"'LockedHint': <false>"* ]]; then
             break
         fi
