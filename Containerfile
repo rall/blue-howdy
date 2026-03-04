@@ -24,8 +24,11 @@ RUN chmod 0755 /usr/libexec/howdy-selinux-setup \
 COPY selinux/howdy_dm.te /usr/share/selinux/howdy/howdy_dm.te
 COPY selinux/howdy_dm.fc /usr/share/selinux/howdy/howdy_dm.fc
 COPY systemd/howdy-selinux-install.service /usr/lib/systemd/system/howdy-selinux-install.service
+COPY systemd/howdy-boot-reenable.service /usr/lib/systemd/system/howdy-boot-reenable.service
 RUN ln -s ../howdy-selinux-install.service \
-    /usr/lib/systemd/system/multi-user.target.wants/howdy-selinux-install.service
+    /usr/lib/systemd/system/multi-user.target.wants/howdy-selinux-install.service && \
+    ln -s ../howdy-boot-reenable.service \
+    /usr/lib/systemd/system/multi-user.target.wants/howdy-boot-reenable.service
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \

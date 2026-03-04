@@ -16,10 +16,20 @@ howdy-enable:
         fi
     done
 
-    # Remove stale session gate from a previous version
-    if [ -f /etc/authselect/password-auth ] && grep -q 'howdy-session-gate' /etc/authselect/password-auth; then
-        echo "Removing stale session gate from /etc/authselect/password-auth"
-        sudo sed -i '/howdy-session-gate/d' /etc/authselect/password-auth
+    # Remove stale session gate from a previous version (howdy-session-gate
+    # was removed; the pam_exec line referencing it crashes GDM after resume)
+    for pam_file in /etc/authselect/password-auth /etc/pam.d/gdm-password; do
+        if [ -f "$pam_file" ] && grep -q 'howdy-session-gate' "$pam_file"; then
+            echo "Removing stale session gate from $pam_file"
+            sudo sed -i '/howdy-session-gate/d' "$pam_file"
+        fi
+    done
+
+    # Clear stale disabled flag (suspend hook sets this; if the system
+    # powered off instead of resuming, the reenable listener never ran)
+    if [ -f /etc/howdy/config.ini ] && grep -q '^disabled = true' /etc/howdy/config.ini; then
+        echo "Clearing stale disabled flag from Howdy config"
+        sudo sed -i '/^disabled = true$/d' /etc/howdy/config.ini
     fi
 
     sudo howdy-authselect enable
@@ -39,9 +49,11 @@ howdy-disable:
     #!/usr/bin/env bash
     set -euo pipefail
     # Remove stale session gate if present (from a previous version)
-    if [ -f /etc/authselect/password-auth ] && grep -q 'howdy-session-gate' /etc/authselect/password-auth; then
-        sudo sed -i '/howdy-session-gate/d' /etc/authselect/password-auth
-    fi
+    for pam_file in /etc/authselect/password-auth /etc/pam.d/gdm-password; do
+        if [ -f "$pam_file" ] && grep -q 'howdy-session-gate' "$pam_file"; then
+            sudo sed -i '/howdy-session-gate/d' "$pam_file"
+        fi
+    done
     sudo howdy-authselect disable
     if [ -d /run/systemd/system ]; then \
         sudo systemctl disable --now howdy-authselect.path; \
