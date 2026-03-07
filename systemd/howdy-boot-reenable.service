@@ -1,13 +1,20 @@
 [Unit]
-Description=Clear stale Howdy disabled flag after boot
+Description=Disable Howdy for boot login, re-enable after user authenticates
 After=local-fs.target
 Before=display-manager.service
 DefaultDependencies=no
 
 [Service]
-Type=oneshot
-ExecStart=/bin/bash -c "sed -i '/^disabled = true$/d' /etc/howdy/config.ini 2>/dev/null || true"
-RemainAfterExit=yes
+Type=simple
+ExecStartPre=/bin/bash -c "\
+    [ -f /etc/howdy/config.ini ] || exit 0; \
+    if grep -q '^disabled' /etc/howdy/config.ini; then \
+        sed -i 's/^disabled.*/disabled = true/' /etc/howdy/config.ini; \
+    else \
+        sed -i '/^\\[core\\]/a disabled = true' /etc/howdy/config.ini; \
+    fi"
+ExecStart=/usr/libexec/howdy-reenable
+TimeoutStartSec=310
 
 [Install]
 WantedBy=multi-user.target
