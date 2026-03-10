@@ -1,14 +1,12 @@
 set quiet
 
-# Enable Howdy authentication (lock screen + sudo)
+# Enable Howdy authentication (sudo/polkit only — GDM always uses password)
 howdy-enable:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    # Remove stale pam_howdy.so lines from pam.d files that may be left over
-    # from the old manual howdy-pam approach. howdy-authselect manages Howdy
-    # via authselect (password-auth/system-auth), so direct pam.d entries
-    # cause Howdy to run twice per auth attempt.
+    # Remove stale pam_howdy.so lines from pam.d files left over from
+    # old manual howdy-pam approach or howdy-authselect
     for pam_file in /etc/pam.d/gdm-password /etc/pam.d/sudo; do
         if [ -f "$pam_file" ] && grep -q 'pam_howdy\.so' "$pam_file"; then
             echo "Removing stale pam_howdy.so from $pam_file"
@@ -16,8 +14,13 @@ howdy-enable:
         fi
     done
 
-    # Remove stale session gate from a previous version (howdy-session-gate
-    # was removed; the pam_exec line referencing it crashes GDM after resume)
+    # Remove stale howdy-authselect lines from password-auth (no longer used)
+    if [ -f /etc/authselect/password-auth ] && grep -q 'pam_howdy\.so' /etc/authselect/password-auth; then
+        echo "Removing pam_howdy.so from password-auth (GDM)"
+        sudo sed -i '/pam_howdy\.so/d' /etc/authselect/password-auth
+    fi
+
+    # Remove stale session gate from a previous version
     for pam_file in /etc/authselect/password-auth /etc/pam.d/gdm-password; do
         if [ -f "$pam_file" ] && grep -q 'howdy-session-gate' "$pam_file"; then
             echo "Removing stale session gate from $pam_file"
@@ -25,24 +28,32 @@ howdy-enable:
         fi
     done
 
-    # Clear stale disabled flag (suspend hook sets this; if the system
-    # powered off instead of resuming, the reenable listener never ran)
+    # Clear stale disabled flag from old suspend hook approach
     if [ -f /etc/howdy/config.ini ] && grep -q '^disabled = true' /etc/howdy/config.ini; then
         echo "Clearing stale disabled flag from Howdy config"
         sudo sed -i '/^disabled = true$/d' /etc/howdy/config.ini
     fi
 
-    sudo howdy-authselect enable
+    # Disable old howdy-authselect path unit if present
+    if [ -d /run/systemd/system ] && systemctl is-enabled howdy-authselect.path &>/dev/null; then
+        sudo systemctl disable --now howdy-authselect.path || true
+    fi
 
-    if [ -d /run/systemd/system ]; then \
-        sudo systemctl enable --now howdy-authselect.path; \
-    else \
-        echo "systemd not running, skipping service enable"; \
+    # Disable old boot-reenable service if present
+    if [ -d /run/systemd/system ] && systemctl is-enabled howdy-boot-reenable.service &>/dev/null; then
+        sudo systemctl disable --now howdy-boot-reenable.service || true
+    fi
+
+    sudo /usr/libexec/howdy-pam enable
+
+    if [ -d /run/systemd/system ]; then
+        sudo systemctl enable --now howdy-pam.path
+    else
+        echo "systemd not running, skipping service enable"
     fi
     echo "Howdy authentication enabled."
-    echo "  Lock screen:      face recognition"
-    echo "  sudo:             face recognition"
-    echo "  After suspend:    password required on first unlock"
+    echo "  GDM login/lock:   password (keyring auto-unlocks)"
+    echo "  sudo/polkit:      face recognition"
 
 # Disable Howdy authentication
 howdy-disable:
@@ -54,17 +65,17 @@ howdy-disable:
             sudo sed -i '/howdy-session-gate/d' "$pam_file"
         fi
     done
-    sudo howdy-authselect disable
-    if [ -d /run/systemd/system ]; then \
-        sudo systemctl disable --now howdy-authselect.path; \
-    else \
-        echo "systemd not running, skipping service disable"; \
+    sudo /usr/libexec/howdy-pam disable
+    if [ -d /run/systemd/system ]; then
+        sudo systemctl disable --now howdy-pam.path || true
+    else
+        echo "systemd not running, skipping service disable"
     fi
     echo "Howdy authentication disabled."
 
 # Show Howdy status
 howdy-status:
-    howdy-authselect status || true
+    /usr/libexec/howdy-pam status || true
 
 @howdy-camera-picker:
     #!/usr/bin/env bash
