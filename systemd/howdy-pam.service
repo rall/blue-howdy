@@ -1,0 +1,8 @@
+[Unit]
+Description=Re-enable howdy in system-auth after authselect changes
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 1
+ExecStart=/usr/libexec/howdy-pam enable

@@ -1,0 +1,8 @@
+[Unit]
+Description=Watch for authselect changes to re-enable howdy in system-auth
+
+[Path]
+PathChanged=/etc/authselect/system-auth
+
+[Install]
+WantedBy=multi-user.target

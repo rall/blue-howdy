@@ -1,0 +1,99 @@
+#!/bin/bash
+# howdy-pam - Enable/disable howdy face auth in PAM (system-auth only)
+#
+# Only patches system-auth (sudo, polkit) — NOT password-auth (GDM).
+# This avoids the howdy + gnome-keyring incompatibility: GDM always gets
+# a password, so the keyring auto-unlocks at boot and after suspend.
+
+set -euo pipefail
+
+AUTH_FILE="/etc/authselect/system-auth"
+PAM_HOWDY="/usr/lib64/security/pam_howdy.so"
+HOWDY_LINE="auth        sufficient                                   pam_howdy.so"
+INSERT_AFTER="pam_faillock.so preauth"
+
+usage() {
+    cat <<EOF
+Usage: howdy-pam [enable|disable|status]
+
+Commands:
+  enable   Add pam_howdy.so to system-auth (sudo/polkit only)
+  disable  Remove pam_howdy.so from system-auth
+  status   Show whether howdy is currently enabled
+EOF
+}
+
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        echo "Error: must be run as root" >&2
+        exit 1
+    fi
+}
+
+is_enabled() {
+    grep -q "pam_howdy.so" "$AUTH_FILE" 2>/dev/null
+}
+
+do_enable() {
+    check_root
+    if [[ ! -f "$PAM_HOWDY" ]]; then
+        echo "Error: pam_howdy.so not found at $PAM_HOWDY" >&2
+        exit 1
+    fi
+    if [[ ! -f "$AUTH_FILE" ]]; then
+        echo "Error: $AUTH_FILE not found (authselect not active?)" >&2
+        exit 1
+    fi
+    if is_enabled; then
+        echo "howdy already enabled in system-auth"
+        return 0
+    fi
+    cp "$AUTH_FILE" "${AUTH_FILE}.bak"
+    if grep -q "$INSERT_AFTER" "$AUTH_FILE"; then
+        sed -i "/$INSERT_AFTER/a\\$HOWDY_LINE" "$AUTH_FILE"
+    else
+        sed -i "/pam_faildelay.so/a\\$HOWDY_LINE" "$AUTH_FILE"
+    fi
+    if is_enabled; then
+        echo "howdy enabled in system-auth (sudo/polkit)"
+    else
+        echo "Error: failed to enable howdy" >&2
+        mv "${AUTH_FILE}.bak" "$AUTH_FILE"
+        exit 1
+    fi
+}
+
+do_disable() {
+    check_root
+    if [[ ! -f "$AUTH_FILE" ]]; then
+        echo "howdy not enabled (no $AUTH_FILE)"
+        return 0
+    fi
+    if ! is_enabled; then
+        echo "howdy not enabled in system-auth"
+        return 0
+    fi
+    cp "$AUTH_FILE" "${AUTH_FILE}.bak"
+    sed -i '/pam_howdy.so/d' "$AUTH_FILE"
+    echo "howdy disabled in system-auth"
+}
+
+do_status() {
+    if [[ ! -f "$AUTH_FILE" ]]; then
+        echo "system-auth: NOT FOUND"
+        return
+    fi
+    if is_enabled; then
+        echo "system-auth: ENABLED"
+    else
+        echo "system-auth: DISABLED"
+    fi
+}
+
+case "${1:-}" in
+    enable)  do_enable ;;
+    disable) do_disable ;;
+    status)  do_status ;;
+    -h|--help|help) usage ;;
+    *) usage; exit 1 ;;
+esac
