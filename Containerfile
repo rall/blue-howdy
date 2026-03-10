@@ -16,19 +16,16 @@ RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy \
     rpm-ostree cleanup -m
 
 COPY selinux/howdy-selinux-setup /usr/libexec/howdy-selinux-setup
-COPY build_files/howdy-suspend-hook /usr/lib/systemd/system-sleep/howdy-suspend-hook
-COPY build_files/howdy-reenable /usr/libexec/howdy-reenable
+COPY build_files/howdy-pam /usr/libexec/howdy-pam
 RUN chmod 0755 /usr/libexec/howdy-selinux-setup \
-    /usr/lib/systemd/system-sleep/howdy-suspend-hook \
-    /usr/libexec/howdy-reenable
+    /usr/libexec/howdy-pam
 COPY selinux/howdy_dm.te /usr/share/selinux/howdy/howdy_dm.te
 COPY selinux/howdy_dm.fc /usr/share/selinux/howdy/howdy_dm.fc
 COPY systemd/howdy-selinux-install.service /usr/lib/systemd/system/howdy-selinux-install.service
-COPY systemd/howdy-boot-reenable.service /usr/lib/systemd/system/howdy-boot-reenable.service
+COPY systemd/howdy-pam.service /usr/lib/systemd/system/howdy-pam.service
+COPY systemd/howdy-pam.path /usr/lib/systemd/system/howdy-pam.path
 RUN ln -s ../howdy-selinux-install.service \
-    /usr/lib/systemd/system/multi-user.target.wants/howdy-selinux-install.service && \
-    ln -s ../howdy-boot-reenable.service \
-    /usr/lib/systemd/system/multi-user.target.wants/howdy-boot-reenable.service
+    /usr/lib/systemd/system/multi-user.target.wants/howdy-selinux-install.service
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
