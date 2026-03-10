@@ -25,7 +25,8 @@ Then(/the PAM config for (the display manager|sudo) (should not|should) contain 
     "should" => true,
     "should not" => false
   }[shd]
-  # howdy-authselect patches /etc/authselect/password-auth (login) and system-auth (sudo)
+  # howdy-pam patches /etc/authselect/system-auth only (sudo/polkit)
+  # GDM (password-auth) never has howdy — avoids gnome-keyring issues
   if service_test == "sudo"
     auth_file = "/etc/authselect/system-auth"
   else
