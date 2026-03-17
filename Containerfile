@@ -15,6 +15,12 @@ RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy \
     libsepol libsemanage python3-libsemanage v4l-utils && \
     rpm-ostree cleanup -m
 
+# Install NVIDIA suspend/resume/hibernate services (only available on NVIDIA images)
+RUN if echo "${BASE_IMAGE}" | grep -qi nvidia; then \
+        rpm-ostree install xorg-x11-drv-nvidia-power && \
+        rpm-ostree cleanup -m; \
+    fi
+
 COPY selinux/howdy-selinux-setup /usr/libexec/howdy-selinux-setup
 COPY build_files/howdy-pam /usr/libexec/howdy-pam
 RUN chmod 0755 /usr/libexec/howdy-selinux-setup \
