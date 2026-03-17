@@ -18,7 +18,17 @@ RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy \
 # Install NVIDIA suspend/resume/hibernate services (only available on NVIDIA images)
 RUN if echo "${BASE_IMAGE}" | grep -qi nvidia; then \
         rpm-ostree install xorg-x11-drv-nvidia-power && \
-        rpm-ostree cleanup -m; \
+        rpm-ostree cleanup -m && \
+        mkdir -p /usr/lib/systemd/system/systemd-suspend.service.wants \
+                 /usr/lib/systemd/system/systemd-hibernate.service.wants && \
+        ln -sf /usr/lib/systemd/system/nvidia-suspend.service \
+            /usr/lib/systemd/system/systemd-suspend.service.wants/nvidia-suspend.service && \
+        ln -sf /usr/lib/systemd/system/nvidia-hibernate.service \
+            /usr/lib/systemd/system/systemd-hibernate.service.wants/nvidia-hibernate.service && \
+        ln -sf /usr/lib/systemd/system/nvidia-resume.service \
+            /usr/lib/systemd/system/systemd-suspend.service.wants/nvidia-resume.service && \
+        ln -sf /usr/lib/systemd/system/nvidia-resume.service \
+            /usr/lib/systemd/system/systemd-hibernate.service.wants/nvidia-resume.service; \
     fi
 
 COPY selinux/howdy-selinux-setup /usr/libexec/howdy-selinux-setup
