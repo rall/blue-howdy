@@ -16,7 +16,8 @@ RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy \
     rpm-ostree cleanup -m
 
 # Install NVIDIA suspend/resume/hibernate services (only available on NVIDIA images)
-RUN if echo "${BASE_IMAGE}" | grep -qi nvidia; then \
+RUN --mount=type=bind,from=ctx,source=/nvidia-sleep,target=/tmp/nvidia-sleep \
+    if echo "${BASE_IMAGE}" | grep -qi nvidia; then \
         rpm-ostree install xorg-x11-drv-nvidia-power && \
         rpm-ostree cleanup -m && \
         mkdir -p /usr/lib/systemd/system/systemd-suspend.service.wants \
@@ -28,13 +29,13 @@ RUN if echo "${BASE_IMAGE}" | grep -qi nvidia; then \
         ln -sf /usr/lib/systemd/system/nvidia-resume.service \
             /usr/lib/systemd/system/systemd-suspend.service.wants/nvidia-resume.service && \
         ln -sf /usr/lib/systemd/system/nvidia-resume.service \
-            /usr/lib/systemd/system/systemd-hibernate.service.wants/nvidia-resume.service; \
+            /usr/lib/systemd/system/systemd-hibernate.service.wants/nvidia-resume.service && \
+        install -m 0755 /tmp/nvidia-sleep /usr/lib/systemd/system-sleep/nvidia && \
+        echo 'options nvidia NVreg_PreserveVideoMemoryAllocations=1' >> /usr/lib/modprobe.d/nvidia.conf; \
     fi
 
 COPY selinux/howdy-selinux-setup /usr/libexec/howdy-selinux-setup
 COPY build_files/howdy-pam /usr/libexec/howdy-pam
-COPY build_files/nvidia-sleep /usr/lib/systemd/system-sleep/nvidia
-RUN chmod 0755 /usr/lib/systemd/system-sleep/nvidia
 RUN chmod 0755 /usr/libexec/howdy-selinux-setup \
     /usr/libexec/howdy-pam
 COPY selinux/howdy_dm.te /usr/share/selinux/howdy/howdy_dm.te
@@ -63,8 +64,6 @@ RUN printf 'import "/usr/share/ublue-os/just/60-blue-howdy.just"\n' >> /usr/shar
 # Disable the repo entirely — BIB doesn't need it for Anaconda installer packages.
 # If that changes, the build will fail with a missing dependency rather than pulling unverified packages.
 RUN sed -i 's/enabled=1/enabled=0/' /etc/yum.repos.d/terra-mesa.repo 2>/dev/null || true
-
-RUN echo 'options nvidia NVreg_PreserveVideoMemoryAllocations=1' >> /usr/lib/modprobe.d/nvidia.conf
 
 RUN ostree container commit
 
