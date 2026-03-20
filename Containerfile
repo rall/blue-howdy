@@ -15,21 +15,11 @@ RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy \
     libsepol libsemanage python3-libsemanage v4l-utils && \
     rpm-ostree cleanup -m
 
-# Install NVIDIA suspend/resume/hibernate services (only available on NVIDIA images)
+# Install NVIDIA sleep hook and VRAM preservation (only on NVIDIA images)
+# The negativo17 driver packages don't ship a systemd-sleep hook, so we provide
+# our own to save/restore GPU state via /proc/driver/nvidia/suspend.
 RUN --mount=type=bind,from=ctx,source=/nvidia-sleep,target=/tmp/nvidia-sleep \
     if echo "${BASE_IMAGE}" | grep -qi nvidia; then \
-        rpm-ostree install xorg-x11-drv-nvidia-power && \
-        rpm-ostree cleanup -m && \
-        mkdir -p /usr/lib/systemd/system/systemd-suspend.service.wants \
-                 /usr/lib/systemd/system/systemd-hibernate.service.wants && \
-        ln -sf /usr/lib/systemd/system/nvidia-suspend.service \
-            /usr/lib/systemd/system/systemd-suspend.service.wants/nvidia-suspend.service && \
-        ln -sf /usr/lib/systemd/system/nvidia-hibernate.service \
-            /usr/lib/systemd/system/systemd-hibernate.service.wants/nvidia-hibernate.service && \
-        ln -sf /usr/lib/systemd/system/nvidia-resume.service \
-            /usr/lib/systemd/system/systemd-suspend.service.wants/nvidia-resume.service && \
-        ln -sf /usr/lib/systemd/system/nvidia-resume.service \
-            /usr/lib/systemd/system/systemd-hibernate.service.wants/nvidia-resume.service && \
         install -m 0755 /tmp/nvidia-sleep /usr/lib/systemd/system-sleep/nvidia && \
         echo 'options nvidia NVreg_PreserveVideoMemoryAllocations=1' >> /usr/lib/modprobe.d/nvidia.conf; \
     fi
