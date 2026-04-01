@@ -15,13 +15,17 @@ RUN rpm-ostree install policycoreutils selinux-policy-targeted checkpolicy \
     libsepol libsemanage python3-libsemanage v4l-utils && \
     rpm-ostree cleanup -m
 
-# Install NVIDIA sleep hook and VRAM preservation (only on NVIDIA images)
-# The negativo17 driver packages don't ship a systemd-sleep hook, so we provide
-# our own to save/restore GPU state via /proc/driver/nvidia/suspend.
-RUN --mount=type=bind,from=ctx,source=/nvidia-sleep,target=/tmp/nvidia-sleep \
-    if echo "${BASE_IMAGE}" | grep -qi nvidia; then \
-        install -m 0755 /tmp/nvidia-sleep /usr/lib/systemd/system-sleep/nvidia && \
-        echo 'options nvidia NVreg_PreserveVideoMemoryAllocations=1' >> /usr/lib/modprobe.d/nvidia.conf; \
+# Fix NVIDIA suspend/resume on images that ship NVreg_UseKernelSuspendNotifiers=1.
+# The kernel-notifier path handles save/restore internally — a systemd-sleep hook
+# writing to /proc/driver/nvidia/suspend conflicts and crashes the driver.
+# We only need to:
+#   1. Remove the S0ix option (conflicts with S3 deep sleep)
+#   2. Deduplicate PreserveVideoMemoryAllocations
+#   3. Add an SELinux allow for systemd-sleep to write VRAM dumps to TemporaryFilePath
+RUN if echo "${BASE_IMAGE}" | grep -qi nvidia; then \
+        sed -i '/NVreg_EnableS0ixPowerManagement/d' /usr/lib/modprobe.d/nvidia.conf && \
+        awk '!seen[$0]++' /usr/lib/modprobe.d/nvidia.conf > /tmp/nvidia.conf && \
+        mv /tmp/nvidia.conf /usr/lib/modprobe.d/nvidia.conf; \
     fi
 
 COPY selinux/howdy-selinux-setup /usr/libexec/howdy-selinux-setup

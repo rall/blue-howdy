@@ -1,4 +1,4 @@
-module howdy_dm 1.3;
+module howdy_dm 1.4;
 
 # Core types — xdm_t is the generic X display manager domain used by GDM
 # on Fedora.  Only types guaranteed to exist go in this require block;
@@ -25,4 +25,20 @@ optional {
 optional {
     require { type lightdm_t; }
     allow lightdm_t v4l_device_t:chr_file { open read ioctl getattr map };
+}
+
+# --- NVIDIA VRAM preservation across suspend/resume ---
+# The nvidia driver (NVreg_PreserveVideoMemoryAllocations=1) dumps VRAM to
+# NVreg_TemporaryFilePath (/var/tmp) during suspend.  systemd-sleep triggers
+# this via the kernel PM notifier chain but SELinux denies the write.
+optional {
+    require {
+        type systemd_sleep_t, tmp_t;
+        class file { create write open read unlink getattr };
+        class dir { write add_name remove_name search };
+        class capability2 { perfmon };
+    }
+    allow systemd_sleep_t tmp_t:dir { write add_name remove_name search };
+    allow systemd_sleep_t tmp_t:file { create write open read unlink getattr };
+    allow systemd_sleep_t self:capability2 { perfmon };
 }
