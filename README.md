@@ -81,6 +81,12 @@ ujust howdy-camera-picker
 
 Interactively tests each `/dev/video*` device with `howdy test` and lets you pick the right IR camera.
 
+### IR Emitter
+
+Many IR cameras need their emitter explicitly enabled via a UVC control command. The camera picker (`ujust howdy-camera-picker`) detects this automatically — if frames are too dark, it offers to run [linux-enable-ir-emitter](https://github.com/EmixamPP/linux-enable-ir-emitter) to find the correct UVC control, then enables a systemd service to persist it across reboots and suspend/resume.
+
+To manage the IR emitter service manually: `sudo systemctl enable|disable|status linux-enable-ir-emitter.service`.
+
 ---
 
 ## How It Works
@@ -114,3 +120,7 @@ sudo bootc switch localhost/blue-howdy:stable
 **Wrong camera selected**: Run `ujust howdy-camera-picker` to select the correct IR camera.
 
 **Upgraded from an older image**: Run `ujust howdy-enable` to clean up stale PAM entries from previous versions (manual PAM editing, howdy-authselect, suspend hooks).
+
+**All frames too dark / IR emitter not working**: Re-run `ujust howdy-camera-picker` — it will detect the dark frames and offer to configure the IR emitter automatically.
+
+**IR emitter stops working after sleep**: Ensure the systemd service is enabled: `sudo systemctl enable --now linux-enable-ir-emitter.service`. It automatically re-runs after every suspend/resume cycle.

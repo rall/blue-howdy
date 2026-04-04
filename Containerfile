@@ -40,6 +40,14 @@ COPY systemd/howdy-pam.path /usr/lib/systemd/system/howdy-pam.path
 RUN ln -s ../howdy-selinux-install.service \
     /usr/lib/systemd/system/multi-user.target.wants/howdy-selinux-install.service
 
+# Install linux-enable-ir-emitter for cameras whose IR emitters don't activate
+# automatically on Linux. The systemd service re-enables the emitter after
+# every boot and suspend/resume cycle.
+ARG IR_EMITTER_VERSION=6.1.2
+ADD https://github.com/EmixamPP/linux-enable-ir-emitter/releases/download/${IR_EMITTER_VERSION}/linux-enable-ir-emitter-${IR_EMITTER_VERSION}-release.systemd.x86-64.tar.gz /tmp/ir-emitter.tar.gz
+RUN tar -C / --no-same-owner -xzf /tmp/ir-emitter.tar.gz && \
+    rm /tmp/ir-emitter.tar.gz
+
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \

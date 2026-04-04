@@ -108,6 +108,7 @@ howdy-status:
 
     echo "Trying each /dev/video* with howdy test (runs as root)"
     kept_paths=()
+    ir_configured=false
     for n in /dev/video*; do
         [ -e "$n" ] || continue
         PATH_TO_USE="$(pick_byid "$n")"
@@ -127,9 +128,41 @@ howdy-status:
             continue
         fi
 
-        # Show preview/log output so the human can judge quality
-        echo "$output"
-        echo
+        # Detect dark frames — offer to configure the IR emitter
+        if echo "$output" | grep -q "too dark"; then
+            echo "$output"
+            echo
+            if command -v linux-enable-ir-emitter &>/dev/null; then
+                read -r -p "Frames too dark — configure IR emitter for this device? [y/N/q] " ir_ans
+                case "${ir_ans:-n}" in
+                    y|Y)
+                        # Resolve /dev/v4l/by-id symlink to /dev/videoN for linux-enable-ir-emitter
+                        dev_node="$(readlink -f "$PATH_TO_USE")"
+                        echo "Running linux-enable-ir-emitter configure -d $dev_node ..."
+                        linux-enable-ir-emitter configure -d "$dev_node" || true
+                        echo
+                        echo "Retrying howdy test..."
+                        set_device "$PATH_TO_USE"
+                        if command -v timeout >/dev/null 2>&1; then
+                            output="$(sudo timeout 5s howdy test 2>&1 || true)"
+                        else
+                            output="$(sudo howdy test 2>&1 || true)"
+                        fi
+                        echo "$output"
+                        ir_configured=true
+                        ;;
+                    q|Q) echo "Quit requested."; exit 2 ;;
+                    *)   echo "Skipping $PATH_TO_USE"; continue ;;
+                esac
+            else
+                echo "$output"
+            fi
+            echo
+        else
+            echo "$output"
+            echo
+        fi
+
         read -r -p "Keep this candidate? [y/N/q] " ans
         case "${ans:-n}" in
             y|Y)
@@ -155,7 +188,6 @@ howdy-status:
             final="${kept_paths[0]}"
             echo "Only one candidate: $final"
             set_device "$final"
-            exit 0
             ;;
         *)
             echo
@@ -170,10 +202,25 @@ howdy-status:
                 final="${kept_paths[$idx]}"
                 echo "Final choice: $final"
                 set_device "$final"
-                exit 0
             else
                 echo "Invalid selection."
                 exit 3
             fi
             ;;
     esac
+
+    # If the IR emitter was configured during camera picking, offer to enable
+    # the systemd service so it persists across reboots and suspend/resume.
+    if [ "$ir_configured" = true ]; then
+        echo
+        if ! systemctl is-enabled linux-enable-ir-emitter.service &>/dev/null; then
+            read -r -p "Enable IR emitter service (activates at boot and after suspend)? [Y/n] " svc_ans
+            case "${svc_ans:-y}" in
+                n|N) echo "Skipped. Enable later with: sudo systemctl enable --now linux-enable-ir-emitter.service" ;;
+                *)   sudo systemctl enable --now linux-enable-ir-emitter.service
+                     echo "IR emitter service enabled." ;;
+            esac
+        else
+            echo "IR emitter service already enabled."
+        fi
+    fi
