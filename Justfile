@@ -77,20 +77,6 @@ howdy-disable:
 howdy-status:
     /usr/libexec/howdy-pam status || true
 
-# Enable IR emitter service (activates at boot and after suspend/resume)
-howdy-ir-enable:
-    sudo systemctl enable --now linux-enable-ir-emitter.service
-    echo "IR emitter service enabled."
-
-# Disable IR emitter service
-howdy-ir-disable:
-    sudo systemctl disable --now linux-enable-ir-emitter.service
-    echo "IR emitter service disabled."
-
-# Show IR emitter service status
-howdy-ir-status:
-    systemctl status linux-enable-ir-emitter.service || true
-
 @howdy-camera-picker:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -230,7 +216,7 @@ howdy-ir-status:
         if ! systemctl is-enabled linux-enable-ir-emitter.service &>/dev/null; then
             read -r -p "Enable IR emitter service (activates at boot and after suspend)? [Y/n] " svc_ans
             case "${svc_ans:-y}" in
-                n|N) echo "Skipped. You can enable later with: ujust howdy-ir-enable" ;;
+                n|N) echo "Skipped. Enable later with: sudo systemctl enable --now linux-enable-ir-emitter.service" ;;
                 *)   sudo systemctl enable --now linux-enable-ir-emitter.service
                      echo "IR emitter service enabled." ;;
             esac
